@@ -1,0 +1,47 @@
+{
+    "control" : {
+        "processing_unit" : "cpu",
+        "std_evp_solver_type" : "lapack",
+        "gen_evp_solver_type" : "lapack",
+        "verbosity": 0
+    },
+
+    "parameters" : {
+        "electronic_structure_method" : "pseudopotential",
+        "smearing_width" : 0.0001,
+        "xc_functionals": ["XC_GGA_X_PBE", "XC_GGA_C_PBE"],
+        "num_mag_dims": 0,
+        "pw_cutoff" : 24.00,
+        "gk_cutoff":  6.00,
+        "use_symmetry": false,
+        "gamma_point": false,
+        "vk" : [[0.25, 0.25, 0.25]]
+    },
+
+    "iterative_solver" : {
+        "type" : "davidson"
+    },
+
+    "unit_cell" : {
+        "lattice_vectors": [
+            [4.78, 0.0 , 0.0],
+            [2.39, 4.14, 0.0],
+            [2.39, 1.38, 3.90]
+        ],
+        "atom_types" : ["C"],
+        "atom_files" : {
+            "C" : "C.json"
+        },
+        "atoms" : {
+            "C" : [
+                [0.0, 0.1, 0.0],
+                [0.75, 0.75, 0.75]
+            ]
+        }
+    },
+
+    "mixer" : {
+        "beta" : 0.7,
+        "max_history" : 8
+    }
+}

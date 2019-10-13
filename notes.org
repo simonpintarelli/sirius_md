@@ -1,0 +1,10 @@
+Json processor =jq= https://stedolan.github.io/jq/
+
+Filter Kohn-Sham energies
+#+BEGIN_SRC sh
+jq '.[].EKS' results.json
+#+END_SRC
+
+#+BEGIN_SRC sh
+jq '{KS: .[].EKS, Etot: .[].E} ' results_small_dt.json
+#+END_SRC
