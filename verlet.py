@@ -3,6 +3,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 from atom_mass import atom_masses
+import argparse
 
 from logger import Logger
 from sirius import (DFT_ground_state_find, atom_positions,
@@ -105,6 +106,16 @@ def velocity_verlet(x, v, F, dt, Fh, m):
     return xn, vn, Fn, EKS
 
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('-t', '--dt', type=float, default=1.0, help='time-step in fs')
+    parser.add_argument('-N', type=int, default=50, help='number of timesteps')
+
+    return parser.parse_args()
+
+
+args = parse_arguments()
+
 kset, _, _, dft_gs = initialize()
 
 unit_cell = kset.ctx().unit_cell()
@@ -117,8 +128,8 @@ Fh = Force(dft_gs)
 x0 = atom_positions(unit_cell)
 F, EKS = Fh(x0)
 v0 = np.zeros_like(x0)
-dt = 1 # time in fs
-N = 500  # number of time steps
+dt = args.dt # time in fs
+N = args.N  # number of time steps
 na = len(x0)  # number of atoms
 atom_types = [unit_cell.atom(i).label for i in range(na)]
 # masses in A_r
