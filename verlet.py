@@ -59,8 +59,8 @@ class Force:
         # initialize_subspace(self.dft, self.dft.k_point_set().ctx())
         # self.dft.initial_state()
         res = dft_gs.find(
-            potential_tol=1e-4,
-            energy_tol=1e-4,
+            potential_tol=1e-6,
+            energy_tol=1e-6,
             initial_tol=1e-2,
             num_dft_iter=100,
             write_state=False,
@@ -97,7 +97,6 @@ def velocity_verlet(x, v, F, dt, Fh, m):
     # update positions
     xn = x + v * dt + 0.5 * F / m * dt ** 2
     # apply periodic bc
-    xn = np.mod(xn, 1)
 
     # update forces, KS energy
     Fn, EKS = Fh(xn)
