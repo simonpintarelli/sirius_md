@@ -58,8 +58,8 @@ class Force:
         # initialize_subspace(self.dft, self.dft.k_point_set().ctx())
         # self.dft.initial_state()
         res = dft_gs.find(
-            potential_tol=1e-8,
-            energy_tol=1e-8,
+            potential_tol=1e-4,
+            energy_tol=1e-4,
             initial_tol=1e-2,
             num_dft_iter=100,
             write_state=False,
@@ -117,7 +117,7 @@ Fh = Force(dft_gs)
 x0 = atom_positions(unit_cell)
 F, EKS = Fh(x0)
 v0 = np.zeros_like(x0)
-dt = 0.5 # time in fs
+dt = 1 # time in fs
 N = 500  # number of time steps
 na = len(x0)  # number of atoms
 atom_types = [unit_cell.atom(i).label for i in range(na)]
@@ -148,7 +148,7 @@ with Logger():
 
 # dump results to json
 log = Logger().log
-with open("results_small_dt.json", "w") as fh:
+with open("results.json", "w") as fh:
     json.dump(log, fh, cls=NumpyEncoder)
 
 # plot energies over time
