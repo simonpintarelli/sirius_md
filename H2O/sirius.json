@@ -15,21 +15,17 @@
         "pw_cutoff" : 25.00,
         "use_symmetry": false,
         "ngridk" : [1, 1, 1],
-        "num_dft_iter": 30,
+        "num_dft_iter": 10,
         "potential_tol": 1e-8,
         "energy_tol": 1e-8,
         "gamma_point": true
-    },
-    "iterative_solver" : {
-        "type" : "davidson",
-        "converge_by_energy" : 1
     },
     "unit_cell" : {
         "lattice_vectors" : [ [1.0, 0.0, 0.0],
                               [0.0, 1.0, 0.0],
                               [0.0, 0.0, 1.0]
                             ],
-        "lattice_vectors_scale": 10,
+        "lattice_vectors_scale": 14,
         "atom_coordinate_units": "au",
         "atom_types" : ["H", "O"],
         "atom_files" : {

@@ -1,3 +1,3 @@
 .. code:: python
 
-   python verlet.py
+   cd H2O && python verlet.py
