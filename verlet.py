@@ -11,15 +11,6 @@ from sirius import (DFT_ground_state_find, atom_positions,
                     set_atom_positions)
 
 
-class NumpyEncoder(json.JSONEncoder):
-    """Numpy helper for json."""
-    # pylint: disable=method-hidden,arguments-differ
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
-
-
 def initialize():
     """Initialize DFT_ground_state object."""
     res = DFT_ground_state_find(num_dft_iter=100)
@@ -59,8 +50,8 @@ class Force:
         # initialize_subspace(self.dft, self.dft.k_point_set().ctx())
         # self.dft.initial_state()
         res = dft_gs.find(
-            potential_tol=1e-6,
-            energy_tol=1e-6,
+            potential_tol=1e-4,
+            energy_tol=1e-4,
             initial_tol=1e-2,
             num_dft_iter=100,
             write_state=False,
@@ -97,7 +88,7 @@ def velocity_verlet(x, v, F, dt, Fh, m):
     # update positions
     xn = x + v * dt + 0.5 * F / m * dt ** 2
     # apply periodic bc
-
+    print('xn', xn)
     # update forces, KS energy
     Fn, EKS = Fh(xn)
     vn = v + 0.5 / m * (F + Fn) * dt
@@ -136,7 +127,7 @@ m = np.array([atom_masses[label] for label in atom_types])
 
 L = lattice_vectors.T
 
-with Logger():
+with Logger('logger.out'):
     # Velocity Verlet time-stepping
     for i in range(N):
         print('iteration: ', i, '\n')
@@ -145,6 +136,7 @@ with Logger():
 
         # TODO: take periodic bc into account
         print("displacement: %.2e" % np.linalg.norm(xn - x0))
+        print('pos: ', xn)
 
         vc = lattice_vectors.T @ vn.T  # velocity in cartesian coordinates
         ekin = 0.5 * np.sum(vc**2 * m[np.newaxis, :])
@@ -155,11 +147,6 @@ with Logger():
         x0 = xn
         v0 = vn
         F = Fn
-
-# dump results to json
-log = Logger().log
-with open("results.json", "w") as fh:
-    json.dump(log, fh, cls=NumpyEncoder)
 
 # plot energies over time
 ts = np.array([x['t'] for x in log])
