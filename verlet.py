@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from atom_mass import atom_masses
 import argparse
+from dft_ground_state import DftGroundState, DftWfExtrapolate
 
 from logger import Logger
 from sirius import (DFT_ground_state_find, atom_positions,
@@ -27,9 +28,7 @@ class Force:
 
     def __init__(self, dft):
         self.dft = dft
-        self.potential = dft.potential()
-        self.density = dft.density()
-        self.unit_cell = dft.k_point_set().ctx().unit_cell()
+        self.unit_cell = dft.dft_obj.k_point_set().ctx().unit_cell()
         self.L = unit_cell.lattice_vectors()
         self.Lh = np.linalg.inv(self.L)
 
@@ -44,25 +43,13 @@ class Force:
         - Etot
         """
         # apply periodic boundary conditions
-        pos = np.mod(pos, 1)
-        set_atom_positions(self.unit_cell, pos)
-        self.dft.update()
-        # initialize_subspace(self.dft, self.dft.k_point_set().ctx())
-        # self.dft.initial_state()
-        res = dft_gs.find(
-            potential_tol=1e-4,
-            energy_tol=1e-4,
-            initial_tol=1e-2,
-            num_dft_iter=100,
-            write_state=False,
-        )
-
+        res = self.dft.update_and_find(pos)
         if not res['converged']:
             raise ScfConvergenceError('failed to converge')
         Logger().insert({'nscf': res['num_scf_iterations'],
                          'band_gap': res['band_gap']})
         print('band_gap: ', res['band_gap'])
-        forces = np.array(self.dft.forces().calc_forces_total()).T
+        forces = np.array(self.dft.dft_obj.forces().calc_forces_total()).T
         print('nscf: ', res['num_scf_iterations'])
         # convert forces to reduced coordinates
         return forces@self.Lh.T, res['energy']['total']
@@ -106,19 +93,21 @@ def parse_arguments():
 
 args = parse_arguments()
 
-kset, _, _, dft_gs = initialize()
+kset, _, _, dft_ = initialize()
+
+# dft = DftWfExtrapolate(dft_, order=2, potential_tol=1e-4, energy_tol=1e-4, num_dft_iter=100)
+dft = DftGroundState(dft_, potential_tol=1e-4, energy_tol=1e-4, num_dft_iter=100)
 
 unit_cell = kset.ctx().unit_cell()
 lattice_vectors = np.array(unit_cell.lattice_vectors())
 
-# TODO: make a wrapper class for dft_gs which does the extrapolation in dft_gs.update()
-# see dft_ground_state.py
-Fh = Force(dft_gs)
+Fh = Force(dft)
 
 x0 = atom_positions(unit_cell)
 F, EKS = Fh(x0)
 v0 = np.zeros_like(x0)
-dt = args.dt # time in fs
+v0[0,0] = 0.01
+dt = args.dt  # time in fs
 N = args.N  # number of time steps
 na = len(x0)  # number of atoms
 atom_types = [unit_cell.atom(i).label for i in range(na)]
@@ -133,8 +122,6 @@ with Logger('logger.out'):
         print('iteration: ', i, '\n')
 
         xn, vn, Fn, EKS = velocity_verlet(x0, v0, F, dt, Fh, m)
-
-        # TODO: take periodic bc into account
         print("displacement: %.2e" % np.linalg.norm(xn - x0))
         print('pos: ', xn)
 
@@ -149,6 +136,7 @@ with Logger('logger.out'):
         F = Fn
 
 # plot energies over time
+log = Logger().log
 ts = np.array([x['t'] for x in log])
 plt.plot(ts, [x['E'] for x in log], label='Etot')
 plt.plot(ts, [x['EKS'] for x in log], label='KS energy')
