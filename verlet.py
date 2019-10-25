@@ -1,10 +1,11 @@
 import json
+import yaml
 
 import matplotlib.pyplot as plt
 import numpy as np
 from atom_mass import atom_masses
 import argparse
-from dft_ground_state import DftGroundState, DftWfExtrapolate
+from dft_ground_state import make_dft
 
 from logger import Logger
 from sirius import (DFT_ground_state_find, atom_positions,
@@ -91,12 +92,18 @@ def parse_arguments():
     return parser.parse_args()
 
 
-args = parse_arguments()
+input_vars = yaml.load(open('input.yaml', 'r'))
+potential_tol = input_vars['parameters']['potential_tol']
+energy_tol = input_vars['parameters']['potential_tol']
+energy_tol = input_vars['parameters']['potential_tol']
+N = input_vars['parameters']['N']
+dt = input_vars['parameters']['dt']
 
 kset, _, _, dft_ = initialize()
 
 # dft = DftWfExtrapolate(dft_, order=2, potential_tol=1e-4, energy_tol=1e-4, num_dft_iter=100)
-dft = DftGroundState(dft_, potential_tol=1e-4, energy_tol=1e-4, num_dft_iter=100)
+# dft = DftGroundState(dft_, potential_tol=1e-4, energy_tol=1e-4, num_dft_iter=100)
+dft = make_dft(dft_, input_vars)
 
 unit_cell = kset.ctx().unit_cell()
 lattice_vectors = np.array(unit_cell.lattice_vectors())
@@ -106,9 +113,6 @@ Fh = Force(dft)
 x0 = atom_positions(unit_cell)
 F, EKS = Fh(x0)
 v0 = np.zeros_like(x0)
-v0[0,0] = 0.01
-dt = args.dt  # time in fs
-N = args.N  # number of time steps
 na = len(x0)  # number of atoms
 atom_types = [unit_cell.atom(i).label for i in range(na)]
 # masses in A_r

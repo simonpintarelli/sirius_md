@@ -87,3 +87,24 @@ class DftWfExtrapolate(DftGroundState):
             self._generate_density_potential(kset)
 
         return super().update_and_find(pos)
+
+
+def make_dft(dft_obj, parameters):
+    """DFT object factory."""
+
+    num_dft_iter = parameters['parameters']['num_dft_iter']
+    potential_tol = parameters['parameters']['potential_tol']
+    energy_tol = parameters['parameters']['energy_tol']
+    if parameters['method']['type'] == 'plain':
+        return DftGroundState(dft_obj,
+                              energy_tol=energy_tol,
+                              potential_tol=potential_tol,
+                              num_dft_iter=num_dft_iter)
+    elif parameters['parameters']['method']['type'] == 'wfct':
+        order = parameters['parameters']['method']['order']
+        return DftWfExtrapolate(dft_obj, order=order,
+                                energy_tol=energy_tol,
+                                potential_tol=potential_tol,
+                                num_dft_iter=num_dft_iter)
+    else:
+        raise ValueError('invalid extrapolation method')
