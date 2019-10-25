@@ -92,7 +92,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-input_vars = yaml.load(open('input.yaml', 'r'))
+input_vars = yaml.load(open('input.yml', 'r'))
 potential_tol = input_vars['parameters']['potential_tol']
 energy_tol = input_vars['parameters']['potential_tol']
 energy_tol = input_vars['parameters']['potential_tol']

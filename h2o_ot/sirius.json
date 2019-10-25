@@ -1,0 +1,55 @@
+{
+    "control" : {
+        "processing_unit" : "cpu",
+        "std_evp_solver_type" : "lapack",
+        "gen_evp_solver_type" : "lapack",
+        "verbosity" : 1
+    },
+
+    "parameters" : {
+        "electronic_structure_method" : "pseudopotential",
+        "xc_functionals" : ["XC_GGA_X_PBE", "XC_GGA_C_PBE"],
+        "smearing_width" : 0.0025,
+        "num_mag_dims" : 1,
+        "num_fv_states": 4,
+        "gk_cutoff" : 7.0,
+        "pw_cutoff" : 25.00,
+        "use_symmetry": false,
+        "ngridk" : [1, 1, 1],
+        "num_dft_iter": 50,
+        "potential_tol": 1e-4,
+        "energy_tol": 1e-4,
+        "molecule": false,
+        "gamma_point": false
+    },
+    "iterative_solver" : {
+        "type" : "davidson",
+        "converge_by_energy" : 1
+    },
+    "unit_cell" : {
+        "lattice_vectors" : [ [1.0, 0.0, 0.0],
+                              [0.0, 1.0, 0.0],
+                              [0.0, 0.0, 1.0]
+                            ],
+        "lattice_vectors_scale": 10,
+        "atom_coordinate_units": "A",
+        "atom_types" : ["H", "O"],
+        "atom_files" : {
+            "H"  : "H.json",
+            "O"  : "O.json"
+        },
+        "atoms" : {
+            "H": [
+                [3.22798e-01,  5.54049e+00,  3.20311e+00],
+                [8.46684e-01,  6.76288e+00,  3.84500e+00]
+            ],
+            "O": [
+                [3.38673e-02,  6.47184e+00,  3.41743e+00]
+            ]
+        }
+    },
+    "!mixer" : {
+        "beta" : 0.8,
+        "max_history": 5
+    }
+}

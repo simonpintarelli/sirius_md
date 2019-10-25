@@ -1,0 +1,19 @@
+Methods:
+  - &plain
+    type: plain
+
+  - &wfct
+    type: wfct
+    order: 3
+
+parameters:
+  method: *plain
+  solver: ot
+  # maximal number of scf iterations
+  num_dft_iter: 30
+  potential_tol: 1e-6
+  energy_tol: 1e-6
+  # time step in fs
+  dt: 1
+  # number of time steps
+  N: 100

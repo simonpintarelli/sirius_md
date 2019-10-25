@@ -2,6 +2,7 @@
 from scipy.special import binom
 import numpy as np
 from sirius import set_atom_positions, spdiag
+from dft_direct_minimizer import OTMethod
 
 
 def loewdin(X):
@@ -14,8 +15,8 @@ def loewdin(X):
 
 class DftGroundState:
     """plain SCF. No extrapolation"""
-    def __init__(self, dft_obj, **kwargs):
-        self.dft_obj = dft_obj
+    def __init__(self, solver, **kwargs):
+        self.dft_obj = solver
         self.potential_tol = kwargs['potential_tol']
         self.energy_tol = kwargs['energy_tol']
         self.num_dft_iter = kwargs['num_dft_iter']
@@ -57,8 +58,8 @@ class DftGroundState:
 
 class DftWfExtrapolate(DftGroundState):
     """extrapolate wave functions."""
-    def __init__(self, dft_obj, order=3, **kwargs):
-        super().__init__(dft_obj, **kwargs)
+    def __init__(self, solver, order=3, **kwargs):
+        super().__init__(solver, **kwargs)
         self.Cs = []
         self.order = order
 
@@ -89,22 +90,29 @@ class DftWfExtrapolate(DftGroundState):
         return super().update_and_find(pos)
 
 
-def make_dft(dft_obj, parameters):
+def make_dft(solver, parameters):
     """DFT object factory."""
 
     num_dft_iter = parameters['parameters']['num_dft_iter']
     potential_tol = parameters['parameters']['potential_tol']
     energy_tol = parameters['parameters']['energy_tol']
-    if parameters['method']['type'] == 'plain':
-        return DftGroundState(dft_obj,
+
+    # TODO: clean this up
+    if 'solver' in parameters['parameters']:
+        if parameters['parameters']['solver'] == 'ot':
+            solver = OTMethod(solver)
+
+    if parameters['parameters']['method']['type'] == 'plain':
+        return DftGroundState(solver,
                               energy_tol=energy_tol,
                               potential_tol=potential_tol,
                               num_dft_iter=num_dft_iter)
     elif parameters['parameters']['method']['type'] == 'wfct':
         order = parameters['parameters']['method']['order']
-        return DftWfExtrapolate(dft_obj, order=order,
+        return DftWfExtrapolate(solver, order=order,
                                 energy_tol=energy_tol,
                                 potential_tol=potential_tol,
                                 num_dft_iter=num_dft_iter)
+
     else:
         raise ValueError('invalid extrapolation method')
