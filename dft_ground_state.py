@@ -68,17 +68,21 @@ class DftWfExtrapolate(DftGroundState):
         Arguments:
         pos -- atom positions in reduced coordinates
         """
+
         kset = self.dft_obj.k_point_set()
         # obtain current wave function coefficients
         C = kset.C
         self.Cs.append(C)
 
         K = self.order
+
         if len(self.Cs) >= K:
-            # run extrapolation
+            # this is Eq (36) from:
+            # Kühne, T. D. Ab-Initio Molecular Dynamics. , 4(4), 391–406.
+            # http://dx.doi.org/10.1002/wcms.1176
             Cp = binom(K, 1) * self.Cs[-1] @ (self.Cs[-1].H @ self.Cs[-1])
             for m in range(2, K+1):
-                Cp += (-1)**(m+1) * binom(K, m) * self.Cs[-m] @ (self.Cs[-m].H @ self.Cs[-1])
+                Cp += (-1)**(m+1) * m * binom(2*K, K-m) / binom(2*K-2, K-1) * self.Cs[-m] @ (self.Cs[-m].H @ self.Cs[-1])
             # orthogonalize
             Cp = loewdin(Cp)
             # truncate wave function history
