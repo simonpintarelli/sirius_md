@@ -16,14 +16,11 @@ class OTMethod:
         # create object to compute the total energy
         self.E = Energy(self.kset, potential, density, self.H)
 
-
-    def find(self, energy_tol, num_dft_iter, **kwargs):
+    def find(self, energy_tol, num_dft_iter, **_):
+        """Find ground state by the orbital transformation method."""
         c0, x = get_c0_x(self.kset)
-        """Find ground state by CG iterations."""
-
         # prepare a simple kinetic preconditioner
         M = make_kinetic_precond(self.kset, c0, asPwCoeffs=True, eps=1e-3)
-
         # run NLCG
         x, niter, success, histE = minimize(
             x,
@@ -40,20 +37,21 @@ class OTMethod:
         return {'converged': success, 'num_scf_iterations': niter, 'band_gap': -1, 'energy': {'total': histE[-1]}}
 
     def density(self):
-        """return SIRIUS density obj."""
+        """Return SIRIUS density obj."""
         return self.dft_obj.density()
 
     def potential(self):
-        """return SIRIUS potential obj."""
+        """Return SIRIUS potential obj."""
         return self.dft_obj.potential()
 
-
     def forces(self):
-        """returns SIRIUS forces obj."""
+        """Returns SIRIUS forces obj."""
         return self.dft_obj.forces()
 
     def update(self):
+        """Call DFT_ground_state.update"""
         return self.dft_obj.update()
 
     def k_point_set(self):
+        """Reeturn SIRIUS k-point set."""
         return self.dft_obj.k_point_set()
