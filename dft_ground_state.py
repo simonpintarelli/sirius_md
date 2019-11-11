@@ -1,25 +1,27 @@
 """Wrappers for SIRIUS DFT_ground_state class"""
-from scipy.special import binom
 import numpy as np
-from sirius import set_atom_positions, spdiag
+from scipy.special import binom
+
 from dft_direct_minimizer import OTMethod
+from sirius import set_atom_positions, spdiag
 
 
 def loewdin(X):
     """ Apply Loewdin orthogonalization to wfct."""
     S = X.H @ X
     w, U = S.eigh()
-    Sm2 = U @ spdiag(1/np.sqrt(w)) @ U.H
+    Sm2 = U @ spdiag(1 / np.sqrt(w)) @ U.H
     return X @ Sm2
 
 
 class DftGroundState:
     """plain SCF. No extrapolation"""
+
     def __init__(self, solver, **kwargs):
         self.dft_obj = solver
-        self.potential_tol = kwargs['potential_tol']
-        self.energy_tol = kwargs['energy_tol']
-        self.num_dft_iter = kwargs['num_dft_iter']
+        self.potential_tol = kwargs["potential_tol"]
+        self.energy_tol = kwargs["energy_tol"]
+        self.num_dft_iter = kwargs["num_dft_iter"]
 
     def _generate_density_potential(self, kset):
         density = self.dft_obj.density()
@@ -49,15 +51,18 @@ class DftGroundState:
 
         self.dft_obj.update()
 
-        return self.dft_obj.find(potential_tol=self.potential_tol,
-                                 energy_tol=self.energy_tol,
-                                 initial_tol=1e-2,
-                                 num_dft_iter=self.num_dft_iter,
-                                 write_state=False)
+        return self.dft_obj.find(
+            potential_tol=self.potential_tol,
+            energy_tol=self.energy_tol,
+            initial_tol=1e-2,
+            num_dft_iter=self.num_dft_iter,
+            write_state=False,
+        )
 
 
 class DftWfExtrapolate(DftGroundState):
     """extrapolate wave functions."""
+
     def __init__(self, solver, order=3, **kwargs):
         super().__init__(solver, **kwargs)
         self.Cs = []
@@ -81,12 +86,15 @@ class DftWfExtrapolate(DftGroundState):
             # Kühne, T. D. Ab-Initio Molecular Dynamics. , 4(4), 391–406.
             # http://dx.doi.org/10.1002/wcms.1176
             Cp = binom(K, 1) * self.Cs[-1] @ (self.Cs[-1].H @ self.Cs[-1])
-            for m in range(2, K+1):
-                Cp += (-1)**(m+1) * m * binom(2*K, K-m) / binom(2*K-2, K-1) * self.Cs[-m] @ (self.Cs[-m].H @ self.Cs[-1])
+            for m in range(2, K + 1):
+                Cp += ((-1) ** (m + 1) * m * binom(2 * K, K - m) / binom(2 * K - 2, K - 1)
+                       * self.Cs[-m]
+                       @ (self.Cs[-m].H @ self.Cs[-1]))
             # orthogonalize
             Cp = loewdin(Cp)
             # truncate wave function history
             self.Cs = self.Cs[1:]
+            # TODO remove phase
             # store extrapolated value
             kset.C = Cp
             self._generate_density_potential(kset)
@@ -97,26 +105,30 @@ class DftWfExtrapolate(DftGroundState):
 def make_dft(solver, parameters):
     """DFT object factory."""
 
-    num_dft_iter = parameters['parameters']['num_dft_iter']
-    potential_tol = parameters['parameters']['potential_tol']
-    energy_tol = parameters['parameters']['energy_tol']
+    num_dft_iter = parameters["parameters"]["num_dft_iter"]
+    potential_tol = parameters["parameters"]["potential_tol"]
+    energy_tol = parameters["parameters"]["energy_tol"]
 
     # TODO: clean this up
-    if 'solver' in parameters['parameters']:
-        if parameters['parameters']['solver'] == 'ot':
+    if "solver" in parameters["parameters"]:
+        if parameters["parameters"]["solver"] == "ot":
             solver = OTMethod(solver)
 
-    if parameters['parameters']['method']['type'] == 'plain':
-        return DftGroundState(solver,
-                              energy_tol=energy_tol,
-                              potential_tol=potential_tol,
-                              num_dft_iter=num_dft_iter)
-    elif parameters['parameters']['method']['type'] == 'wfct':
-        order = parameters['parameters']['method']['order']
-        return DftWfExtrapolate(solver, order=order,
-                                energy_tol=energy_tol,
-                                potential_tol=potential_tol,
-                                num_dft_iter=num_dft_iter)
+    if parameters["parameters"]["method"]["type"] == "plain":
+        return DftGroundState(
+            solver,
+            energy_tol=energy_tol,
+            potential_tol=potential_tol,
+            num_dft_iter=num_dft_iter,
+        )
+    if parameters["parameters"]["method"]["type"] == "wfct":
+        order = parameters["parameters"]["method"]["order"]
+        return DftWfExtrapolate(
+            solver,
+            order=order,
+            energy_tol=energy_tol,
+            potential_tol=potential_tol,
+            num_dft_iter=num_dft_iter,
+        )
 
-    else:
-        raise ValueError('invalid extrapolation method')
+    raise ValueError("invalid extrapolation method")
