@@ -76,7 +76,7 @@ def velocity_verlet(x, v, F, dt, Fh, m):
     # update positions
     xn = x + v * dt + 0.5 * F / m * dt ** 2
     # apply periodic bc
-    print('xn', xn)
+    # print('xn', xn)
     # update forces, KS energy
     Fn, EKS = Fh(xn)
     vn = v + 0.5 / m * (F + Fn) * dt
