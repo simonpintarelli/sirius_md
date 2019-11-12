@@ -9,7 +9,7 @@ def diff(dd):
     xdiff = np.linalg.norm(x[:,0]-x[:,1])
     return xdiff, vdiff
 
-data = json.load(open('results.json', 'r'))
+data = json.load(open('logger.out', 'r'))
 xv = np.array([diff(dd) for dd in data])
 plt.scatter(xv[:,0], xv[:,1], marker='x')
 plt.xlabel('x')
