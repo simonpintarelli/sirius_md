@@ -41,6 +41,7 @@ class DftGroundState:
 
     def update_and_find(self, pos):
         """
+        Update positions and compute ground state
         Arguments:
         pos -- atom positions in reduced coordinates
         """
@@ -98,6 +99,22 @@ class DftWfExtrapolate(DftGroundState):
             # store extrapolated value
             kset.C = Cp
             self._generate_density_potential(kset)
+
+            res = super().update_and_find(pos)
+
+            # Subspace alignment
+            # C <- C U
+            # where U = (O O^H)^(-1/2) O, O = C^H Cp
+            # note that: O O^H = I
+            # according to (11) in:
+            # Steneteg, P., Abrikosov, I. A., Weber, V., & Niklasson, A. M. N. (). Wave
+            # function extended Lagrangian Born-Oppenheimer molecular dynamics. , 82(7),
+            # 075110. http://dx.doi.org/10.1103/PhysRevB.82.075110
+            C = kset.C
+            O = C.H @ Cp
+            kset.C = C @ O
+
+            return res
 
         return super().update_and_find(pos)
 
