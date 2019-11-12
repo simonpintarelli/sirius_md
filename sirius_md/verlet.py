@@ -1,16 +1,17 @@
 import json
 import yaml
-
 import matplotlib.pyplot as plt
 import numpy as np
-from atom_mass import atom_masses
 import argparse
-from dft_ground_state import make_dft
-
-from logger import Logger
 from sirius import (DFT_ground_state_find, atom_positions,
                     initialize_subspace,
                     set_atom_positions)
+
+from .atom_mass import atom_masses
+from .dft_ground_state import make_dft
+from .logger import Logger
+
+
 
 
 def initialize():
@@ -91,61 +92,64 @@ def parse_arguments():
 
     return parser.parse_args()
 
+def run():
+    input_vars = yaml.load(open('input.yml', 'r'))
+    potential_tol = input_vars['parameters']['potential_tol']
+    energy_tol = input_vars['parameters']['potential_tol']
+    energy_tol = input_vars['parameters']['potential_tol']
+    N = input_vars['parameters']['N']
+    dt = input_vars['parameters']['dt']
 
-input_vars = yaml.load(open('input.yml', 'r'))
-potential_tol = input_vars['parameters']['potential_tol']
-energy_tol = input_vars['parameters']['potential_tol']
-energy_tol = input_vars['parameters']['potential_tol']
-N = input_vars['parameters']['N']
-dt = input_vars['parameters']['dt']
+    kset, _, _, dft_ = initialize()
 
-kset, _, _, dft_ = initialize()
+    # dft = DftWfExtrapolate(dft_, order=2, potential_tol=1e-4, energy_tol=1e-4, num_dft_iter=100)
+    # dft = DftGroundState(dft_, potential_tol=1e-4, energy_tol=1e-4, num_dft_iter=100)
+    dft = make_dft(dft_, input_vars)
 
-# dft = DftWfExtrapolate(dft_, order=2, potential_tol=1e-4, energy_tol=1e-4, num_dft_iter=100)
-# dft = DftGroundState(dft_, potential_tol=1e-4, energy_tol=1e-4, num_dft_iter=100)
-dft = make_dft(dft_, input_vars)
+    unit_cell = kset.ctx().unit_cell()
+    lattice_vectors = np.array(unit_cell.lattice_vectors())
 
-unit_cell = kset.ctx().unit_cell()
-lattice_vectors = np.array(unit_cell.lattice_vectors())
+    Fh = Force(dft)
 
-Fh = Force(dft)
+    x0 = atom_positions(unit_cell)
+    F, EKS = Fh(x0)
+    v0 = np.zeros_like(x0)
+    na = len(x0)  # number of atoms
+    atom_types = [unit_cell.atom(i).label for i in range(na)]
+    # masses in A_r
+    m = np.array([atom_masses[label] for label in atom_types])
 
-x0 = atom_positions(unit_cell)
-F, EKS = Fh(x0)
-v0 = np.zeros_like(x0)
-na = len(x0)  # number of atoms
-atom_types = [unit_cell.atom(i).label for i in range(na)]
-# masses in A_r
-m = np.array([atom_masses[label] for label in atom_types])
+    L = lattice_vectors.T
 
-L = lattice_vectors.T
+    with Logger('logger.out'):
+        # Velocity Verlet time-stepping
+        for i in range(N):
+            print('iteration: ', i, '\n')
 
-with Logger('logger.out'):
-    # Velocity Verlet time-stepping
-    for i in range(N):
-        print('iteration: ', i, '\n')
+            xn, vn, Fn, EKS = velocity_verlet(x0, v0, F, dt, Fh, m)
+            print("displacement: %.2e" % np.linalg.norm(xn - x0))
+            print('pos: ', xn)
 
-        xn, vn, Fn, EKS = velocity_verlet(x0, v0, F, dt, Fh, m)
-        print("displacement: %.2e" % np.linalg.norm(xn - x0))
-        print('pos: ', xn)
+            vc = lattice_vectors.T @ vn.T  # velocity in cartesian coordinates
+            ekin = 0.5 * np.sum(vc**2 * m[np.newaxis, :])
+            print("Etot: %10.4f, Ekin: %10.4f, Eks: %10.4f" % (EKS + ekin, ekin, EKS))
+            Logger().insert(
+                {"i": i, "vc": vc, "x": xn, "E": EKS + ekin, "EKS": EKS, "ekin": ekin, 't': i*dt}
+            )
+            x0 = xn
+            v0 = vn
+            F = Fn
 
-        vc = lattice_vectors.T @ vn.T  # velocity in cartesian coordinates
-        ekin = 0.5 * np.sum(vc**2 * m[np.newaxis, :])
-        print("Etot: %10.4f, Ekin: %10.4f, Eks: %10.4f" % (EKS + ekin, ekin, EKS))
-        Logger().insert(
-            {"i": i, "vc": vc, "x": xn, "E": EKS + ekin, "EKS": EKS, "ekin": ekin, 't': i*dt}
-        )
-        x0 = xn
-        v0 = vn
-        F = Fn
+    # plot energies over time
+    log = Logger().log
+    ts = np.array([x['t'] for x in log])
+    plt.plot(ts, [x['E'] for x in log], label='Etot')
+    plt.plot(ts, [x['EKS'] for x in log], label='KS energy')
+    plt.xlabel('t [fs]')
+    plt.ylabel('E [Ha]')
+    plt.grid(True)
+    plt.legend(loc='best')
+    plt.show()
 
-# plot energies over time
-log = Logger().log
-ts = np.array([x['t'] for x in log])
-plt.plot(ts, [x['E'] for x in log], label='Etot')
-plt.plot(ts, [x['EKS'] for x in log], label='KS energy')
-plt.xlabel('t [fs]')
-plt.ylabel('E [Ha]')
-plt.grid(True)
-plt.legend(loc='best')
-plt.show()
+if __name__ == '__main__':
+    run()
