@@ -2,8 +2,9 @@
 import numpy as np
 from scipy.special import binom
 
-from dft_direct_minimizer import OTMethod
-from sirius import set_atom_positions, spdiag
+from .dft_direct_minimizer import OTMethod
+from sirius import set_atom_positions, spdiag, l2norm
+from sirius.coefficient_array import threaded
 
 
 def loewdin(X):
@@ -13,6 +14,18 @@ def loewdin(X):
     Sm2 = U @ spdiag(1 / np.sqrt(w)) @ U.H
     return X @ Sm2
 
+def _solve(A, X):
+    """
+    returns A⁻¹ X
+    """
+    out = type(X)(dtype=X.dtype, ctype=X.ctype)
+    for k in X.keys():
+        out[k] = np.linalg.solve(A[k], X[k])
+    return out
+
+@threaded
+def chol(X):
+    return np.linalg.cholesky(X)
 
 class DftGroundState:
     """plain SCF. No extrapolation"""
@@ -61,6 +74,11 @@ class DftGroundState:
         )
 
 
+def Bm(K, j):
+    """Extrapolation coefficients from Kolafa 0 < j < K+2"""
+    return (-1)**(j+1) * j * binom(2*K +2, K+1-j) / binom(2*K, K)
+
+
 class DftWfExtrapolate(DftGroundState):
     """extrapolate wave functions."""
 
@@ -68,6 +86,11 @@ class DftWfExtrapolate(DftGroundState):
         super().__init__(solver, **kwargs)
         self.Cs = []
         self.order = order
+        # extrapolation coefficients
+        self.Bm = [Bm(order, j) for j in range(1, order+2)]
+        print('Extrapolation coefficients: ', self.Bm)
+        print('Extrapolation order: ', len(self.Bm))
+        assert np.isclose(np.sum(self.Bm), 1)
 
     def update_and_find(self, pos):
         """
@@ -80,22 +103,20 @@ class DftWfExtrapolate(DftGroundState):
         C = kset.C
         self.Cs.append(C)
 
-        K = self.order
+        if len(self.Cs) >= self.order+1:
+            print('extrpolate')
+            # this is Eq (19) from:
+            # Kolafa, J., Time-reversible always stable predictor–corrector method
+            #             for molecular dynamics of polarizable molecules,
+            # 25(3), 335–342 ().  http://dx.doi.org/10.1002/jcc.10385
 
-        if len(self.Cs) >= K:
-            # this is Eq (36) from:
-            # Kühne, T. D. Ab-Initio Molecular Dynamics. , 4(4), 391–406.
-            # http://dx.doi.org/10.1002/wcms.1176
-            Cp = binom(K, 1) * self.Cs[-1] @ (self.Cs[-1].H @ self.Cs[-1])
-            for m in range(2, K + 1):
-                Cp += ((-1) ** (m + 1) * m * binom(2 * K, K - m) / binom(2 * K - 2, K - 1)
-                       * self.Cs[-m]
-                       @ (self.Cs[-m].H @ self.Cs[-1]))
+            Cp = self.Bm[0] * self.Cs[-1]
+            for j in range(1, self.order+1):
+                Cp += self.Bm[j] * self.Cs[-(j+1)] @ (self.Cs[-(j+1)].H @ self.Cs[-1])
             # orthogonalize
             Cp = loewdin(Cp)
             # truncate wave function history
             self.Cs = self.Cs[1:]
-            # TODO remove phase
             # store extrapolated value
             kset.C = Cp
             self._generate_density_potential(kset)
@@ -111,8 +132,11 @@ class DftWfExtrapolate(DftGroundState):
             # function extended Lagrangian Born-Oppenheimer molecular dynamics. , 82(7),
             # 075110. http://dx.doi.org/10.1103/PhysRevB.82.075110
             C = kset.C
-            O = C.H @ Cp
-            kset.C = C @ O
+            Om = C.H @ Cp
+            L = chol(Om@Om.H)
+            U = _solve(L, Om)
+            C_phase = C @ U
+            kset.C = C_phase
 
             return res
 

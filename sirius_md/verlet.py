@@ -31,7 +31,7 @@ class Force:
     def __init__(self, dft):
         self.dft = dft
         self.unit_cell = dft.dft_obj.k_point_set().ctx().unit_cell()
-        self.L = unit_cell.lattice_vectors()
+        self.L = self.unit_cell.lattice_vectors()
         self.Lh = np.linalg.inv(self.L)
 
     def __call__(self, pos):
