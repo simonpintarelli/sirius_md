@@ -1,3 +1,10 @@
+# Installation
+.. code:: bash
+
+          pip install -e .
+
+# Run
+
 .. code:: python
 
-   cd H2O && python verlet.py
+          OMP_NUM_THREADS=4 verlet | tee verlet.out
