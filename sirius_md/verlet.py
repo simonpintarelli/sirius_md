@@ -85,13 +85,6 @@ def velocity_verlet(x, v, F, dt, Fh, m):
     return xn, vn, Fn, EKS
 
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument('-t', '--dt', type=float, default=1.0, help='time-step in fs')
-    parser.add_argument('-N', type=int, default=50, help='number of timesteps')
-
-    return parser.parse_args()
-
 def run():
     input_vars = yaml.load(open('input.yml', 'r'))
     potential_tol = input_vars['parameters']['potential_tol']
