@@ -114,9 +114,6 @@ class DftWfExtrapolate(DftGroundState):
 
         kset = self.dft_obj.k_point_set()
         # obtain current wave function coefficients
-        C = kset.C
-        self.Cs.append(C)
-
         if len(self.Cs) >= self.order+1:
             print('extrpolate')
 
@@ -153,12 +150,16 @@ class DftWfExtrapolate(DftGroundState):
             print('unaligned: %.5e' % l2norm(C_phase-C))
             print('diff: %.5e' % l2norm(C_phase-C))
             # obtain current wave function coefficients
-            C = kset.C
-            self.Cs.append(C)
+
+            omega = self.order / (2*self.order - 1)
+            self.Cs.append(omega*C_phase + (1-omega)*Cp)
 
             return res
 
-        return super().update_and_find(pos)
+        res =  super().update_and_find(pos)
+        C = kset.C
+        self.Cs.append(C)
+        return res
 
 
 class NiklassonWfExtrapolate(DftGroundState):
