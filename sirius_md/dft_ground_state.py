@@ -3,8 +3,9 @@ import numpy as np
 from scipy.special import binom
 
 from .dft_direct_minimizer import OTMethod
-from sirius import set_atom_positions, spdiag, l2norm
+from sirius import set_atom_positions, spdiag, l2norm, diag
 from sirius.coefficient_array import threaded
+from scipy import linalg as la
 
 
 def loewdin(X):
@@ -24,8 +25,8 @@ def _solve(A, X):
     return out
 
 @threaded
-def chol(X):
-    return np.linalg.cholesky(X)
+def sqrtm(X):
+    return la.sqrtm(X)
 
 class DftGroundState:
     """plain SCF. No extrapolation"""
@@ -105,11 +106,11 @@ class DftWfExtrapolate(DftGroundState):
 
         if len(self.Cs) >= self.order+1:
             print('extrpolate')
+
             # this is Eq (19) from:
             # Kolafa, J., Time-reversible always stable predictor–corrector method
             #             for molecular dynamics of polarizable molecules,
             # 25(3), 335–342 ().  http://dx.doi.org/10.1002/jcc.10385
-
             Cp = self.Bm[0] * self.Cs[-1]
             for j in range(1, self.order+1):
                 Cp += self.Bm[j] * self.Cs[-(j+1)] @ (self.Cs[-(j+1)].H @ self.Cs[-1])
@@ -128,15 +129,25 @@ class DftWfExtrapolate(DftGroundState):
             # where U = (O O^H)^(-1/2) O, O = C^H Cp
             # note that: O O^H = I
             # according to (11) in:
-            # Steneteg, P., Abrikosov, I. A., Weber, V., & Niklasson, A. M. N. (). Wave
+            # Steneteg, P., Abrikosov, I. A., Weber, V., & Niklasson, A. M. N.  Wave
             # function extended Lagrangian Born-Oppenheimer molecular dynamics. , 82(7),
             # 075110. http://dx.doi.org/10.1103/PhysRevB.82.075110
             C = kset.C
             Om = C.H @ Cp
-            L = chol(Om@Om.H)
-            U = _solve(L, Om)
+            Omh = sqrtm(Om@Om.H)
+            U = _solve(Omh, Om)
             C_phase = C @ U
             kset.C = C_phase
+            assert(False)
+            print('U', diag(U))
+            print('U offdiag', l2norm(U-diag(diag(U))))
+            print('aligned: %.5e' % l2norm(C_phase-Cp))
+            print('unaligned: %.5e' % l2norm(C-Cp))
+            print('diff: %.5e' % l2norm(C-C_phase))
+
+            # obtain current wave function coefficients
+            C = kset.C
+            self.Cs.append(C)
 
             return res
 
