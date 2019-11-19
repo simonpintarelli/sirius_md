@@ -25,8 +25,8 @@ def _solve(A, X):
     return out
 
 @threaded
-def sqrtm(X):
-    return la.sqrtm(X)
+def chol(X):
+    return la.cholesky(X)
 
 class DftGroundState:
     """plain SCF. No extrapolation"""
@@ -127,24 +127,20 @@ class DftWfExtrapolate(DftGroundState):
             # Subspace alignment
             # C <- C U
             # where U = (O O^H)^(-1/2) O, O = C^H Cp
-            # note that: O O^H = I
             # according to (11) in:
             # Steneteg, P., Abrikosov, I. A., Weber, V., & Niklasson, A. M. N.  Wave
             # function extended Lagrangian Born-Oppenheimer molecular dynamics. , 82(7),
             # 075110. http://dx.doi.org/10.1103/PhysRevB.82.075110
             C = kset.C
             Om = C.H @ Cp
-            Omh = sqrtm(Om@Om.H)
-            U = _solve(Omh, Om)
+            U = _solve(chol(Om@Om.H), Om)
             C_phase = C @ U
             kset.C = C_phase
-            assert(False)
             print('U', diag(U))
             print('U offdiag', l2norm(U-diag(diag(U))))
-            print('aligned: %.5e' % l2norm(C_phase-Cp))
-            print('unaligned: %.5e' % l2norm(C-Cp))
-            print('diff: %.5e' % l2norm(C-C_phase))
-
+            print('aligned: %.5e' % l2norm(C_phase-C))
+            print('unaligned: %.5e' % l2norm(C_phase-C))
+            print('diff: %.5e' % l2norm(C_phase-C))
             # obtain current wave function coefficients
             C = kset.C
             self.Cs.append(C)
