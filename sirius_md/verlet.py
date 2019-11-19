@@ -87,9 +87,6 @@ def velocity_verlet(x, v, F, dt, Fh, m):
 
 def run():
     input_vars = yaml.load(open('input.yml', 'r'))
-    potential_tol = input_vars['parameters']['potential_tol']
-    energy_tol = input_vars['parameters']['potential_tol']
-    energy_tol = input_vars['parameters']['potential_tol']
     N = input_vars['parameters']['N']
     dt = input_vars['parameters']['dt']
 
@@ -112,8 +109,6 @@ def run():
     # masses in A_r
     m = np.array([atom_masses[label] for label in atom_types])
 
-    L = lattice_vectors.T
-
     with Logger('logger.out'):
         # Velocity Verlet time-stepping
         for i in range(N):
@@ -121,7 +116,6 @@ def run():
 
             xn, vn, Fn, EKS = velocity_verlet(x0, v0, F, dt, Fh, m)
             print("displacement: %.2e" % np.linalg.norm(xn - x0))
-            print('pos: ', xn)
 
             vc = lattice_vectors.T @ vn.T  # velocity in cartesian coordinates
             ekin = 0.5 * np.sum(vc**2 * m[np.newaxis, :])
