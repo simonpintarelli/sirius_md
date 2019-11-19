@@ -28,6 +28,19 @@ def _solve(A, X):
 def chol(X):
     return la.cholesky(X)
 
+
+def align_subspace(C, Cp):
+    """Align subspace of wave functions."""
+    # Arias, T. A., Payne, M. C., & Joannopoulos, J. D.,
+    # Ab initio molecular-dynamics techniques extended to large-length-scale systems,
+    # 45(4), 1538–1549.
+    # http://dx.doi.org/10.1103/PhysRevB.45.1538
+
+    Om = C.H @ Cp
+    U = _solve(chol(Om@Om.H), Om)
+    return C @ U
+
+
 class DftGroundState:
     """plain SCF. No extrapolation"""
 
@@ -132,9 +145,7 @@ class DftWfExtrapolate(DftGroundState):
             # function extended Lagrangian Born-Oppenheimer molecular dynamics. , 82(7),
             # 075110. http://dx.doi.org/10.1103/PhysRevB.82.075110
             C = kset.C
-            Om = C.H @ Cp
-            U = _solve(chol(Om@Om.H), Om)
-            C_phase = C @ U
+            C_phase = align_subspace(C, Cp)
             kset.C = C_phase
             print('U', diag(U))
             print('U offdiag', l2norm(U-diag(diag(U))))
@@ -148,6 +159,73 @@ class DftWfExtrapolate(DftGroundState):
             return res
 
         return super().update_and_find(pos)
+
+
+class NiklassonWfExtrapolate(DftGroundState):
+    """Niklasson wave function extrapolation.
+
+    Steneteg, P., Abrikosov, I. A., Weber, V., & Niklasson, A. M. N.,
+    Wave function extended Lagrangian Born-Oppenheimer molecular dynamics,
+    82(7), 075110
+    http://dx.doi.org/10.1103/PhysRevB.82.075110
+    """
+
+    def __init__(self, solver, order, **kwargs):
+        super().__init__(solver, **kwargs)
+        self.Cps = []
+        self.order = order
+
+        # Niklasson, A. M. N., Steneteg, P., Odell, A., Bock, N., Challacombe, M., Tymczak, C. J., Holmström, E.,
+        # Extended Lagrangian Born–Oppenheimer molecular dynamics with dissipation,
+        # 130(21), 214109 ().  http://dx.doi.org/10.1063/1.3148075
+        self.coeffs = {
+            3: {'kappa': 1.69, 'a': 0.15, 'c': [-2, 3, 0, -1]},
+            4: {'kappa': 1.75, 'a': 0.057, 'c': [-3, 6, -2, -2, 1]},
+            5: {'kappa': 1.82, 'a': 0.018, 'c': [-6, 14, -8, -3, 4, -1]},
+            6: {'kappa': 1.84, 'a': 0.0055, 'c': [-14, 36, -27, -2, 12, -6, 1]},
+            7: {'kappa': 1.86, 'a': 0.0016, 'c': [-36, 99, -88, 11, 32, -25, 8, -1]},
+            8: {'kappa': 1.88, 'a': 0.00044, 'c': [-99, 286, -286, 78, 78, -90, 42, -10, 1]},
+            9: {'kappa': 1.89, 'a': 0.00012, 'c': [-286, 858, -936, 364, 168, -300, 184, -63, 12, -1]}
+        }
+
+        if not order in self.coeffs:
+            raise ValueError('invalid order given.')
+
+    def update_and_find(self, pos):
+        """
+        Arguments:
+        pos -- atom positions in reduced coordinates
+        """
+
+        kset = self.dft_obj.k_point_set()
+        if len(self.Cps) >= 2:
+            n = min(self.order, len(self.Cps)-1)
+            C = kset.C
+            CU = align_subspace(C, self.Cps[-1])
+            Cp = 2*self.Cps[-1] - self.Cps[-2] + self.coeffs[n]['kappa']*(CU-self.Cps[-1])
+            cm = self.coeffs[n]['c']
+            for i in range(n+1):
+                # others
+                Cp += self.coeffs[n]['a'] * cm[i] * self.Cps[-(i+1)]
+            Cp = loewdin(Cp)
+            # append history
+            if len(self.Cps) == self.order+1:
+                self.Cps = self.Cps[1:] + [Cp,]
+            else:
+                self.Cps += [Cp,]
+
+            kset.C = Cp
+            res = super().update_and_find(pos)
+            return res
+
+        # not enough previous values to extrapolate
+        res = super().update_and_find(pos)
+        C = kset.C
+
+        if len(self.Cps) > 0:
+            self.Cps.append(align_subspace(C, self.Cps[-1]))
+        return res
+
 
 
 def make_dft(solver, parameters):
@@ -169,7 +247,7 @@ def make_dft(solver, parameters):
             potential_tol=potential_tol,
             num_dft_iter=num_dft_iter,
         )
-    if parameters["parameters"]["method"]["type"] == "wfct":
+    if parameters["parameters"]["method"]["type"] == "kolafa":
         order = parameters["parameters"]["method"]["order"]
         return DftWfExtrapolate(
             solver,
@@ -178,5 +256,15 @@ def make_dft(solver, parameters):
             potential_tol=potential_tol,
             num_dft_iter=num_dft_iter,
         )
+    if parameters["parameters"]["method"]["type"] == "niklasson_wf":
+        order = parameters["parameters"]["method"]["order"]
+        return NiklassonWfExtrapolate(
+            solver,
+            order=order,
+            energy_tol=energy_tol,
+            potential_tol=potential_tol,
+            num_dft_iter=num_dft_iter,
+        )
+
 
     raise ValueError("invalid extrapolation method")
