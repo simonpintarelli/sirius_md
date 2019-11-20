@@ -1,9 +1,13 @@
-# Installation
+Installation
+============
+
 .. code:: bash
 
           pip install -e .
 
-# Run
+
+Run
+===
 
 .. code:: python
 
