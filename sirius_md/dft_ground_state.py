@@ -48,7 +48,7 @@ class DftGroundState:
         self.dft_obj = solver
         self.potential_tol = kwargs["potential_tol"]
         self.energy_tol = kwargs["energy_tol"]
-        self.num_dft_iter = kwargs["num_dft_iter"]
+        self.maxiter = kwargs["maxiter"]
 
     def _generate_density_potential(self, kset):
         density = self.dft_obj.density()
@@ -83,7 +83,7 @@ class DftGroundState:
             potential_tol=self.potential_tol,
             energy_tol=self.energy_tol,
             initial_tol=1e-2,
-            num_dft_iter=self.num_dft_iter,
+            num_dft_iter=self.maxiter,
             write_state=False,
         )
 
@@ -232,7 +232,7 @@ class NiklassonWfExtrapolate(DftGroundState):
 def make_dft(solver, parameters):
     """DFT object factory."""
 
-    num_dft_iter = parameters["parameters"]["num_dft_iter"]
+    maxiter = parameters["parameters"]["maxiter"]
     potential_tol = parameters["parameters"]["potential_tol"]
     energy_tol = parameters["parameters"]["energy_tol"]
 
@@ -246,7 +246,7 @@ def make_dft(solver, parameters):
             solver,
             energy_tol=energy_tol,
             potential_tol=potential_tol,
-            num_dft_iter=num_dft_iter,
+            maxiter=maxiter,
         )
     if parameters["parameters"]["method"]["type"] == "kolafa":
         order = parameters["parameters"]["method"]["order"]
@@ -255,7 +255,7 @@ def make_dft(solver, parameters):
             order=order,
             energy_tol=energy_tol,
             potential_tol=potential_tol,
-            num_dft_iter=num_dft_iter,
+            maxiter=maxiter,
         )
     if parameters["parameters"]["method"]["type"] == "niklasson_wf":
         order = parameters["parameters"]["method"]["order"]
@@ -264,7 +264,7 @@ def make_dft(solver, parameters):
             order=order,
             energy_tol=energy_tol,
             potential_tol=potential_tol,
-            num_dft_iter=num_dft_iter,
+            maxiter=maxiter,
         )
 
 

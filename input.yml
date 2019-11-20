@@ -10,7 +10,7 @@ parameters:
   method: *plain
   solver: ot
   # maximal number of scf iterations
-  num_dft_iter: 30
+  maxiter: 30
   potential_tol: 1.0e-6
   energy_tol: 1.0e-6
   # time step in fs

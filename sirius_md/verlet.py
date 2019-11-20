@@ -92,8 +92,6 @@ def run():
 
     kset, _, _, dft_ = initialize()
 
-    # dft = DftWfExtrapolate(dft_, order=2, potential_tol=1e-4, energy_tol=1e-4, num_dft_iter=100)
-    # dft = DftGroundState(dft_, potential_tol=1e-4, energy_tol=1e-4, num_dft_iter=100)
     dft = make_dft(dft_, input_vars)
 
     unit_cell = kset.ctx().unit_cell()
