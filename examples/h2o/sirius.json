@@ -1,0 +1,43 @@
+{
+    "control" : {
+        "processing_unit" : "cpu",
+        "verbosity" : 0
+    },
+
+    "parameters" : {
+        "electronic_structure_method" : "pseudopotential",
+        "xc_functionals" : ["XC_GGA_X_PBE", "XC_GGA_C_PBE"],
+        "smearing_width" : 0.00025,
+        "num_mag_dims" : 0,
+        "num_fv_states": 4,
+        "gk_cutoff" : 7,
+        "pw_cutoff" : 25.00,
+        "use_symmetry": false,
+        "ngridk" : [1, 1, 1],
+        "potential_tol": 1e-8,
+        "energy_tol": 1e-8,
+        "gamma_point": false
+    },
+    "unit_cell" : {
+        "lattice_vectors" : [ [1.0, 0.0, 0.0],
+                              [0.0, 1.0, 0.0],
+                              [0.0, 0.0, 1.0]
+                            ],
+        "lattice_vectors_scale": 14,
+        "atom_coordinate_units": "au",
+        "atom_types" : ["H", "O"],
+        "atom_files" : {
+            "H"  : "H.json",
+            "O"  : "O.json"
+        },
+        "atoms" : {
+            "H": [
+                [3.22798e-01,  5.54049e+00,  3.20311e+00],
+                [8.46684e-01,  6.76288e+00,  3.84500e+00]
+            ],
+            "O": [
+                [3.38673e-02,  6.47184e+00,  3.41743e+00]
+            ]
+        }
+    },
+}
