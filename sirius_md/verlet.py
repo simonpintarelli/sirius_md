@@ -107,7 +107,7 @@ def run():
     # masses in A_r
     m = np.array([atom_masses[label] for label in atom_types])
 
-    with Logger('logger.out'):
+    with Logger('md_results.json'):
         # Velocity Verlet time-stepping
         for i in range(N):
             print('iteration: ', i, '\n')
