@@ -22,11 +22,17 @@ class NumpyEncoder(json.JSONEncoder):
 
 class Logger(metaclass=Singleton):
     """Logger for timestepping scheme."""
-    def __init__(self, output='logger.out'):
+    def __init__(self, output='logger.json', ofreq=10):
+        """
+        Arguments:
+        output -- output filename
+        ofreq  -- save every ofreq steps (Default: 10)
+        """
         self.active = False
         self.current = {}
         self.log = []
         self.output=output
+        self.ofreq = ofreq
 
     def __enter__(self):
         self.log = []
@@ -37,7 +43,6 @@ class Logger(metaclass=Singleton):
         if len(self.current) > 0:
             self.log.append(self.current)
             self.current = {}
-        print('Logger.__exit__:', len(self.log))
         with open(self.output, 'w') as fh:
             json.dump(self.log, fh, cls=NumpyEncoder)
 
@@ -47,8 +52,11 @@ class Logger(metaclass=Singleton):
             return
 
         if set(entries) < set(self.current):
-            #assume next round
             self.log.append(self.current)
             self.current = {}
+
+        if self.ofreq is not None and len(self.current) % self.ofreq == 0:
+            with open(self.output, 'w') as fh:
+                json.dump(self.log, fh, cls=NumpyEncoder)
 
         self.current = {**self.current, **entries}
