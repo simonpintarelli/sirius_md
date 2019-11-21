@@ -16,7 +16,7 @@ class OTMethod:
         # create object to compute the total energy
         self.E = Energy(self.kset, potential, density, self.H)
 
-    def find(self, energy_tol, maxiter, **_):
+    def find(self, energy_tol, num_dft_iter, **_):
         """Find ground state by the orbital transformation method."""
         c0, x = get_c0_x(self.kset)
         # prepare a simple kinetic preconditioner
@@ -26,7 +26,7 @@ class OTMethod:
             x,
             f=lambda x: self.E(c(x, c0)),
             df=ConstrainedGradient(self.H, c0),
-            maxiter=maxiter,
+            maxiter=num_dft_iter,
             restart=10,
             mtype='PR',
             verbose=True,
