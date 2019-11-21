@@ -12,8 +12,6 @@ from .dft_ground_state import make_dft
 from .logger import Logger
 
 
-
-
 def initialize():
     """Initialize DFT_ground_state object."""
     res = DFT_ground_state_find(num_dft_iter=100)
@@ -76,13 +74,15 @@ def velocity_verlet(x, v, F, dt, Fh, m):
     m = m[:, np.newaxis]  # enable broadcasting in numpy
     # update positions
     xn = x + v * dt + 0.5 * F / m * dt ** 2
-    # apply periodic bc
-    # print('xn', xn)
-    # update forces, KS energy
     Fn, EKS = Fh(xn)
     vn = v + 0.5 / m * (F + Fn) * dt
 
     return xn, vn, Fn, EKS
+
+
+def to_cart(x, L):
+    assert L.shape == (3, 3)
+    return x@L
 
 
 def run():
@@ -114,12 +114,14 @@ def run():
 
             xn, vn, Fn, EKS = velocity_verlet(x0, v0, F, dt, Fh, m)
             print("displacement: %.2e" % np.linalg.norm(xn - x0))
-
-            vc = lattice_vectors.T @ vn.T  # velocity in cartesian coordinates
-            ekin = 0.5 * np.sum(vc**2 * m[np.newaxis, :])
+            vc = to_cart(vn, lattice_vectors)
+            ekin = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
             print("Etot: %10.4f, Ekin: %10.4f, Eks: %10.4f" % (EKS + ekin, ekin, EKS))
             Logger().insert(
-                {"i": i, "vc": vc, "x": xn, "E": EKS + ekin, "EKS": EKS, "ekin": ekin, 't': i*dt}
+                {"i": i,
+                 "v": to_cart(vn, lattice_vectors),
+                 "x": to_cart(xn, lattice_vectors),
+                 "E": EKS + ekin, "EKS": EKS, "ekin": ekin, 't': i*dt}
             )
             x0 = xn
             v0 = vn
