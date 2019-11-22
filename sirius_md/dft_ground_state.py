@@ -30,11 +30,27 @@ def cholesky(X):
 
 
 def align_subspace(C, Cp):
-    """Align subspace of wave functions."""
+    """Align subspace of wave functions.
+
+    Computes: U = argmin_Z || C@Z - Cp ||
+    and returns C@Z.
+
+    For derivation see: http://dx.doi.org/10.1103/PhysRevB.45.1538.
+
+    O = C.H @ Cp
+    U = (O @ O.H) ^ (-1/2) @ O
+    C = C @ U
+    return C
+
+    Arguments:
+    C  -- wave function
+    Cp -- wave function
+    """
     # Arias, T. A., Payne, M. C., & Joannopoulos, J. D.,
     # Ab initio molecular-dynamics techniques extended to large-length-scale systems,
     # 45(4), 1538–1549.
     # http://dx.doi.org/10.1103/PhysRevB.45.1538
+    # See Appendix A: subspace alignment
 
     Om = C.H @ Cp
     U = _solve(cholesky(Om@Om.H), Om)
