@@ -206,11 +206,9 @@ class NiklassonWfExtrapolate(DftGroundState):
                 # others
                 Cp += self.coeffs[self.order]['a'] * cm[i] * self.Cps[-(i+1)]
             Cp = loewdin(Cp)
+
             # append history
-            if len(self.Cps) == self.order+1:
-                self.Cps = self.Cps[1:] + [Cp, ]
-            else:
-                self.Cps += [Cp, ]
+            self.Cps = self.Cps[1:] + [Cp, ]
 
             kset.C = Cp
             res = super().update_and_find(pos)
@@ -225,7 +223,6 @@ class NiklassonWfExtrapolate(DftGroundState):
         else:
             self.Cps.append(C)
         return res
-
 
 
 def make_dft(solver, parameters):
