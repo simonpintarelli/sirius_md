@@ -25,7 +25,7 @@ def _solve(A, X):
     return out
 
 @threaded
-def chol(X):
+def cholesky(X):
     return la.cholesky(X)
 
 
@@ -37,7 +37,7 @@ def align_subspace(C, Cp):
     # http://dx.doi.org/10.1103/PhysRevB.45.1538
 
     Om = C.H @ Cp
-    U = _solve(chol(Om@Om.H), Om)
+    U = _solve(cholesky(Om@Om.H), Om)
     C_phase = C @ U
     print('U offdiag', l2norm(U-diag(diag(U))))
     print('aligned: %.5e' % l2norm(C_phase-C))
