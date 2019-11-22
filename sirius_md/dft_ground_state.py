@@ -38,7 +38,12 @@ def align_subspace(C, Cp):
 
     Om = C.H @ Cp
     U = _solve(chol(Om@Om.H), Om)
-    return C @ U
+    C_phase = C @ U
+    print('U offdiag', l2norm(U-diag(diag(U))))
+    print('aligned: %.5e' % l2norm(C_phase-C))
+    print('unaligned: %.5e' % l2norm(Cp-C))
+    # obtain current wave function coefficients
+    return C
 
 
 class DftGroundState:
@@ -115,8 +120,7 @@ class DftWfExtrapolate(DftGroundState):
         kset = self.dft_obj.k_point_set()
         # obtain current wave function coefficients
         if len(self.Cs) >= self.order+1:
-            print('extrpolate')
-
+            print('extrapolate')
             # this is Eq (19) from:
             # Kolafa, J., Time-reversible always stable predictor–corrector method
             #             for molecular dynamics of polarizable molecules,
@@ -144,19 +148,12 @@ class DftWfExtrapolate(DftGroundState):
             C = kset.C
             C_phase = align_subspace(C, Cp)
             kset.C = C_phase
-            print('U', diag(U))
-            print('U offdiag', l2norm(U-diag(diag(U))))
-            print('aligned: %.5e' % l2norm(C_phase-C))
-            print('unaligned: %.5e' % l2norm(C_phase-C))
-            print('diff: %.5e' % l2norm(C_phase-C))
-            # obtain current wave function coefficients
-
             omega = self.order / (2*self.order - 1)
             self.Cs.append(omega*C_phase + (1-omega)*Cp)
 
             return res
 
-        res =  super().update_and_find(pos)
+        res = super().update_and_find(pos)
         C = kset.C
         self.Cs.append(C)
         return res
@@ -189,7 +186,7 @@ class NiklassonWfExtrapolate(DftGroundState):
             9: {'kappa': 1.89, 'a': 0.00012, 'c': [-286, 858, -936, 364, 168, -300, 184, -63, 12, -1]}
         }
 
-        if not order in self.coeffs:
+        if order not in self.coeffs:
             raise ValueError('invalid order given.')
 
     def update_and_find(self, pos):
@@ -199,21 +196,21 @@ class NiklassonWfExtrapolate(DftGroundState):
         """
 
         kset = self.dft_obj.k_point_set()
-        if len(self.Cps) >= 2:
-            n = min(self.order, len(self.Cps)-1)
+        if len(self.Cps) >= self.order+1:
+            print('niklasson extrapolate')
             C = kset.C
             CU = align_subspace(C, self.Cps[-1])
-            Cp = 2*self.Cps[-1] - self.Cps[-2] + self.coeffs[n]['kappa']*(CU-self.Cps[-1])
-            cm = self.coeffs[n]['c']
-            for i in range(n+1):
+            Cp = 2*self.Cps[-1] - self.Cps[-2] + self.coeffs[self.order]['kappa']*(CU-self.Cps[-1])
+            cm = self.coeffs[self.order]['c']
+            for i in range(self.order+1):
                 # others
-                Cp += self.coeffs[n]['a'] * cm[i] * self.Cps[-(i+1)]
+                Cp += self.coeffs[self.order]['a'] * cm[i] * self.Cps[-(i+1)]
             Cp = loewdin(Cp)
             # append history
             if len(self.Cps) == self.order+1:
-                self.Cps = self.Cps[1:] + [Cp,]
+                self.Cps = self.Cps[1:] + [Cp, ]
             else:
-                self.Cps += [Cp,]
+                self.Cps += [Cp, ]
 
             kset.C = Cp
             res = super().update_and_find(pos)
@@ -225,6 +222,8 @@ class NiklassonWfExtrapolate(DftGroundState):
 
         if len(self.Cps) > 0:
             self.Cps.append(align_subspace(C, self.Cps[-1]))
+        else:
+            self.Cps.append(C)
         return res
 
 
