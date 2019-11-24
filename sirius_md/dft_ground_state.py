@@ -234,6 +234,7 @@ class NiklassonWfExtrapolate(DftGroundState):
         res = super().update_and_find(pos)
         C = kset.C
 
+        # subspace alignment for initial, non-extrapolated steps
         if len(self.Cps) > 0:
             self.Cps.append(align_subspace(C, self.Cps[-1]))
         else:
