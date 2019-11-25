@@ -198,6 +198,7 @@ class NiklassonWfExtrapolate(DftGroundState):
         # Extended Lagrangian Born–Oppenheimer molecular dynamics with dissipation,
         # 130(21), 214109 ().  http://dx.doi.org/10.1063/1.3148075
         self.coeffs = {
+            0: {'kappa': 2, 'a': 0, 'c': []},
             3: {'kappa': 1.69, 'a': 0.15, 'c': [-2, 3, 0, -1]},
             4: {'kappa': 1.75, 'a': 0.057, 'c': [-3, 6, -2, -2, 1]},
             5: {'kappa': 1.82, 'a': 0.018, 'c': [-6, 14, -8, -3, 4, -1]},
@@ -223,9 +224,10 @@ class NiklassonWfExtrapolate(DftGroundState):
             CU = align_subspace(C, self.Cps[-1])
             Cp = 2*self.Cps[-1] - self.Cps[-2] + self.coeffs[self.order]['kappa']*(CU-self.Cps[-1])
             cm = self.coeffs[self.order]['c']
-            for i in range(self.order+1):
-                # others
-                Cp += self.coeffs[self.order]['a'] * cm[i] * self.Cps[-(i+1)]
+            if self.order > 0:
+                for i in range(self.order+1):
+                    # others
+                    Cp += self.coeffs[self.order]['a'] * cm[i] * self.Cps[-(i+1)]
             Cp = loewdin(Cp)
 
             # append history
