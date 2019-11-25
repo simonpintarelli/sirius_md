@@ -2,7 +2,7 @@
 import numpy as np
 from scipy.special import binom
 
-from .dft_direct_minimizer import OTMethod
+from .dft_direct_minimizer import OTMethod, MVP2Method
 from sirius import set_atom_positions, spdiag, l2norm, diag
 from sirius.coefficient_array import threaded
 from scipy import linalg as la
@@ -250,16 +250,24 @@ class NiklassonWfExtrapolate(DftGroundState):
 
 
 def make_dft(solver, parameters):
-    """DFT object factory."""
+    """DFT object factory.
+
+    Arguments:
+    solver     -- plain DFT_ground_state from SIRIUS
+    parameters -- parameter dictionary
+    """
 
     maxiter = parameters["parameters"]["maxiter"]
     potential_tol = parameters["parameters"]["potential_tol"]
     energy_tol = parameters["parameters"]["energy_tol"]
 
-    # TODO: clean this up
+    # replace solver if OTMethod or MVP2 is used
     if "solver" in parameters["parameters"]:
         if parameters["parameters"]["solver"] == "ot":
             solver = OTMethod(solver)
+        if parameters["parameters"]["solver"] == "mvp2":
+            # this one is for metallic systems, only implemented for magnetic sytems
+            solver = MVP2Method(solver)
 
     if parameters["parameters"]["method"]["type"] == "plain":
         return DftGroundState(
