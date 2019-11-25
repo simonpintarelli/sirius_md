@@ -35,12 +35,17 @@ def align_subspace(C, Cp):
     Computes: U = argmin_Z || C@Z - Cp ||
     and returns C@Z.
 
-    For derivation see: http://dx.doi.org/10.1103/PhysRevB.45.1538.
+    O = C.H@Cp
 
-    O = C.H @ Cp
-    U = (O @ O.H) ^ (-1/2) @ O
-    C = C @ U
-    return C
+    Z is given by (O@ O.H)^(-1/2) O.
+
+    Z can be computed using svd:
+    U, s, Vh = svd(O)
+
+    Then Z = U@Vh.
+
+
+    For derivation see: http://dx.doi.org/10.1103/PhysRevB.45.1538.
 
     Arguments:
     C  -- wave function
@@ -53,8 +58,8 @@ def align_subspace(C, Cp):
     # See Appendix A: subspace alignment
 
     Om = C.H @ Cp
-    U = _solve(cholesky(Om@Om.H), Om)
-    C_phase = C @ U
+    U, _, Vh = Om.svd(full_matrices=False)
+    C_phase = C @ (U @ Vh)
     print('U offdiag', l2norm(U-diag(diag(U))))
     print('aligned: %.5e' % l2norm(C_phase-C))
     print('unaligned: %.5e' % l2norm(Cp-C))
