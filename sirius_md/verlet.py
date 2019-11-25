@@ -47,7 +47,8 @@ class Force:
         if not res['converged']:
             raise ScfConvergenceError('failed to converge')
         Logger().insert({'nscf': res['num_scf_iterations'],
-                         'band_gap': res['band_gap']})
+                         'band_gap': res['band_gap'],
+                         'scf_dict': res})
         print('band_gap: ', res['band_gap'])
         forces = np.array(self.dft.dft_obj.forces().calc_forces_total()).T
         print('nscf: ', res['num_scf_iterations'])
