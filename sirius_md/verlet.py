@@ -127,16 +127,16 @@ def run():
             v0 = vn
             F = Fn
 
-    # plot energies over time
-    log = Logger().log
-    ts = np.array([x['t'] for x in log])
-    plt.plot(ts, [x['E'] for x in log], label='Etot')
-    plt.plot(ts, [x['EKS'] for x in log], label='KS energy')
-    plt.xlabel('t [fs]')
-    plt.ylabel('E [Ha]')
-    plt.grid(True)
-    plt.legend(loc='best')
-    plt.show()
+    # # plot energies over time
+    # log = Logger().log
+    # ts = np.array([x['t'] for x in log])
+    # plt.plot(ts, [x['E'] for x in log], label='Etot')
+    # plt.plot(ts, [x['EKS'] for x in log], label='KS energy')
+    # plt.xlabel('t [fs]')
+    # plt.ylabel('E [Ha]')
+    # plt.grid(True)
+    # plt.legend(loc='best')
+    # plt.show()
 
 if __name__ == '__main__':
     run()
