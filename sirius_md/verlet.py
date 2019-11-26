@@ -10,6 +10,7 @@ from sirius import (DFT_ground_state_find, atom_positions,
 from .atom_mass import atom_masses
 from .dft_ground_state import make_dft
 from .logger import Logger
+import time
 
 
 def initialize():
@@ -75,8 +76,12 @@ def velocity_verlet(x, v, F, dt, Fh, m):
     m = m[:, np.newaxis]  # enable broadcasting in numpy
     # update positions
     xn = x + v * dt + 0.5 * F / m * dt ** 2
+    t1 = time.time()
     Fn, EKS = Fh(xn)
+    t2 = time.time()
     vn = v + 0.5 / m * (F + Fn) * dt
+
+    Logger().insert({'t_evalforce': t2-t1})
 
     return xn, vn, Fn, EKS
 
