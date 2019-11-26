@@ -15,7 +15,10 @@ import time
 
 def initialize():
     """Initialize DFT_ground_state object."""
-    res = DFT_ground_state_find(num_dft_iter=100)
+    sirius_config = json.load(open('sirius.json', 'r'))
+    sirius_config['parameters']['potential_tol'] = 1e-9
+    sirius_config['parameters']['energy_tol'] = 1e-9
+    res = DFT_ground_state_find(num_dft_iter=100, config=sirius_config)
 
     return res["kpointset"], res["density"], res["potential"], res["dft_gs"]
 
