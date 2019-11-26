@@ -44,7 +44,6 @@ def align_subspace(C, Cp):
 
     Then Z = U@Vh.
 
-
     For derivation see: http://dx.doi.org/10.1103/PhysRevB.45.1538.
 
     Arguments:
@@ -160,16 +159,11 @@ class DftWfExtrapolate(DftGroundState):
             res = super().update_and_find(pos)
 
             # Subspace alignment
-            # C <- C U
-            # where U = (O O^H)^(-1/2) O, O = C^H Cp
-            # according to (11) in:
-            # Steneteg, P., Abrikosov, I. A., Weber, V., & Niklasson, A. M. N.  Wave
-            # function extended Lagrangian Born-Oppenheimer molecular dynamics. , 82(7),
-            # 075110. http://dx.doi.org/10.1103/PhysRevB.82.075110
             C = kset.C
             C_phase = align_subspace(C, Cp)
             kset.C = C_phase
             omega = self.order / (2*self.order - 1)
+            # apply corrector and append to history
             self.Cs.append(omega*C_phase + (1-omega)*Cp)
 
             return res
