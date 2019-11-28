@@ -59,11 +59,11 @@ def align_subspace(C, Cp):
     Om = C.H @ Cp
     U, _, Vh = Om.svd(full_matrices=False)
     C_phase = C @ (U @ Vh)
-    print('U offdiag', l2norm(U-diag(diag(U))))
+    # print('U offdiag', l2norm(U-diag(diag(U))))
     print('aligned: %.5e' % l2norm(C_phase-Cp))
     print('unaligned: %.5e' % l2norm(C-Cp))
     # obtain current wave function coefficients
-    return C
+    return C_phase
 
 
 class DftGroundState:
