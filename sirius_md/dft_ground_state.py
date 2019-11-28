@@ -162,7 +162,7 @@ class DftGroundState:
 
 def Bm(K, j):
     """Extrapolation coefficients from Kolafa 0 < j < K+2"""
-    return (-1)**(j+1) * j * binom(2*K +2, K+1-j) / binom(2*K, K)
+    return (-1)**(j+1) * j * binom(2*K + 2, K+1-j) / binom(2*K, K)
 
 
 class DftWfExtrapolate(DftGroundState):
