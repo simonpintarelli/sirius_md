@@ -110,7 +110,6 @@ def align_occupied_subspace(C, Cp, fn):
     return C_phase
 
 
-
 class DftGroundState:
     """plain SCF. No extrapolation"""
 
@@ -336,6 +335,5 @@ def make_dft(solver, parameters):
             potential_tol=potential_tol,
             maxiter=maxiter,
         )
-
 
     raise ValueError("invalid extrapolation method")
