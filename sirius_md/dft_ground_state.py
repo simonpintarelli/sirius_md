@@ -91,7 +91,7 @@ class DftGroundState:
             potential.symmetrize()
         potential.fft_transform(1)
 
-    def update_and_find(self, pos):
+    def update_and_find(self, pos, tol=None):
         """
         Update positions and compute ground state
         Arguments:
@@ -105,8 +105,8 @@ class DftGroundState:
         self.dft_obj.update()
 
         return self.dft_obj.find(
-            potential_tol=self.potential_tol,
-            energy_tol=self.energy_tol,
+            potential_tol=self.potential_tol if tol is None else tol,
+            energy_tol=self.energy_tol if tol is None else tol,
             initial_tol=1e-2,
             num_dft_iter=self.maxiter,
             write_state=False,
@@ -123,7 +123,7 @@ class DftWfExtrapolate(DftGroundState):
 
     def __init__(self, solver, order=3, **kwargs):
         super().__init__(solver, **kwargs)
-        self.Cs = []
+        self.Cs = [self.dft_obj.k_point_set().C]
         self.order = order
         # extrapolation coefficients
         self.Bm = [Bm(order, j) for j in range(1, order+2)]
@@ -185,6 +185,7 @@ class NiklassonWfExtrapolate(DftGroundState):
 
     def __init__(self, solver, order, **kwargs):
         super().__init__(solver, **kwargs)
+        self.Cs = [self.dft_obj.k_point_set().C]
         self.Cps = []
         self.order = order
 
@@ -212,7 +213,7 @@ class NiklassonWfExtrapolate(DftGroundState):
         """
 
         kset = self.dft_obj.k_point_set()
-        if len(self.Cps) >= self.order+1:
+        if len(self.Cps) >= max(2, self.order+1):
             print('niklasson extrapolate')
             C = kset.C
             CU = align_subspace(C, self.Cps[-1])
@@ -232,14 +233,11 @@ class NiklassonWfExtrapolate(DftGroundState):
             return res
 
         # not enough previous values to extrapolate
-        res = super().update_and_find(pos)
+        res = super().update_and_find(pos, tol=1e-9)
         C = kset.C
 
         # subspace alignment for initial, non-extrapolated steps
-        if len(self.Cps) > 0:
-            self.Cps.append(align_subspace(C, self.Cps[-1]))
-        else:
-            self.Cps.append(C)
+        self.Cps.append(align_subspace(C, self.Cps[-1]))
         return res
 
 
