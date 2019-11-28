@@ -3,7 +3,7 @@ import numpy as np
 from scipy.special import binom
 
 from .dft_direct_minimizer import OTMethod, MVP2Method
-from sirius import set_atom_positions, spdiag, l2norm, diag
+from sirius import set_atom_positions, spdiag, l2norm
 from sirius.coefficient_array import threaded
 from scipy import linalg as la
 
@@ -15,6 +15,7 @@ def loewdin(X):
     Sm2 = U @ spdiag(1 / np.sqrt(w)) @ U.H
     return X @ Sm2
 
+
 def _solve(A, X):
     """
     returns A⁻¹ X
@@ -24,9 +25,18 @@ def _solve(A, X):
         out[k] = np.linalg.solve(A[k], X[k])
     return out
 
+
 @threaded
 def cholesky(X):
     return la.cholesky(X)
+
+
+def is_insulator(fn):
+    @threaded
+    def _is_insulator(fn):
+        return np.linalg.norm(fn-np.mean(fn))
+    # check if bands are not constant
+    return np.sum(_is_insulator(fn)) < 1e-8
 
 
 def align_subspace(C, Cp):
@@ -89,6 +99,10 @@ def align_occupied_subspace(C, Cp, fn):
     # 45(4), 1538–1549.
     # http://dx.doi.org/10.1103/PhysRevB.45.1538
     # See Appendix A: subspace alignment
+
+    if is_insulator(fn):
+        return align_subspace(C, Cp)
+
     from copy import deepcopy
     C_phase = deepcopy(C)
 
@@ -101,7 +115,7 @@ def align_occupied_subspace(C, Cp, fn):
         jocc = ids[0]  # first empty band
 
         # assert all occupation numbers are equal
-        assert np.linalg.norm(fnk[:jocc]-np.mean(fnk[:jocc]), ord='fro') < 1e-9
+        assert np.linalg.norm(fnk[:jocc]-np.mean(fnk[:jocc])) < 1e-9
 
         Om = Ck[:, :jocc].H @ Cpk[:, :jocc]
         U, _, Vh = np.linalg.svd(Om, full_matrices=False)
@@ -201,25 +215,27 @@ class DftWfExtrapolate(DftGroundState):
             # truncate wave function history
             self.Cs = self.Cs[1:]
             # store extrapolated value
+            align_occupied_subspace(Cp, kset.C, kset.fn)
             kset.C = Cp
             self._generate_density_potential(kset)
             res = super().update_and_find(pos)
 
             # Subspace alignment
             C = kset.C
-            C_phase = align_subspace(C, Cp)
+            print('align C,Cp')
+            C_phase = align_occupied_subspace(C, Cp, kset.fn)
             kset.C = C_phase
             omega = (self.order+1) / (2*self.order + 1)
             # apply corrector and append to history
             print('align to previous iterate..')
-            self.Cs.append(align_subspace(loewdin(omega*C_phase + (1-omega)*Cp), self.Cs[-1]))
+            self.Cs.append(align_occupied_subspace(loewdin(omega*C_phase + (1-omega)*Cp), self.Cs[-1], kset.fn))
 
             return res
 
         # initial steps with higher tolerance
         res = super().update_and_find(pos, tol=1e-9)
         C = kset.C
-        self.Cs.append(align_subspace(C, self.Cs[-1]))
+        self.Cs.append(align_occupied_subspace(C, self.Cs[-1], kset.fn))
         return res
 
 
