@@ -125,7 +125,7 @@ def run():
             print("displacement: %.2e" % np.linalg.norm(xn - x0))
             vc = to_cart(vn, lattice_vectors)
             ekin = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
-            print("Etot: %10.4f, Ekin: %10.4f, Eks: %10.4f" % (EKS + ekin, ekin, EKS))
+            print("Etot: %10.8f, Ekin: %10.8f, Eks: %10.8f" % (EKS + ekin, ekin, EKS))
             Logger().insert(
                 {"i": i,
                  "v": to_cart(vn, lattice_vectors),
