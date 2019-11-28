@@ -30,19 +30,17 @@ def cholesky(X):
 
 
 def align_subspace(C, Cp):
-    """Align subspace of wave functions.
+    """Aligns subspaces.
 
     Computes: U = argmin_Z || C@Z - Cp ||
-    and returns C@Z.
+    and returns C@U.
 
-    O = C.H@Cp
+    U is given by (O@ O.H)^(-1/2) O,
+    where O = C.H@Cp.
 
-    Z is given by (O@ O.H)^(-1/2) O.
-
-    Z can be computed using svd:
-    U, s, Vh = svd(O)
-
-    Then Z = U@Vh.
+    U can be computed using svd:
+    W, s, Vh = svd(O),
+    then U = W@Vh.
 
     For derivation see: http://dx.doi.org/10.1103/PhysRevB.45.1538.
 
@@ -50,6 +48,7 @@ def align_subspace(C, Cp):
     C  -- wave function
     Cp -- wave function
     """
+
     # Arias, T. A., Payne, M. C., & Joannopoulos, J. D.,
     # Ab initio molecular-dynamics techniques extended to large-length-scale systems,
     # 45(4), 1538–1549.
@@ -64,6 +63,52 @@ def align_subspace(C, Cp):
     print('unaligned: %.5e' % l2norm(C-Cp))
     # obtain current wave function coefficients
     return C_phase
+
+
+def align_occupied_subspace(C, Cp, fn):
+    """Aligns only occupied part of subspace.
+
+    Computes: U = argmin_Z || C@Z - Cp ||
+    and returns C@U.
+
+    U is given by (O@ O.H)^(-1/2) O,
+    where O = C.H@Cp.
+
+    U can be computed using svd:
+    W, s, Vh = svd(O),
+    then U = W@Vh.
+
+    For derivation see: http://dx.doi.org/10.1103/PhysRevB.45.1538.
+
+    Arguments:
+    C  -- wave function
+    Cp -- wave function
+    """
+    # Arias, T. A., Payne, M. C., & Joannopoulos, J. D.,
+    # Ab initio molecular-dynamics techniques extended to large-length-scale systems,
+    # 45(4), 1538–1549.
+    # http://dx.doi.org/10.1103/PhysRevB.45.1538
+    # See Appendix A: subspace alignment
+    from copy import deepcopy
+    C_phase = deepcopy(C)
+
+    for k in C.keys():
+        Ck = C[k]
+        Cpk = Cp[k]
+        fnk = fn[k]
+
+        ids, = np.where(np.isclose(fnk, 0))
+        jocc = ids[0]  # first empty band
+
+        # assert all occupation numbers are equal
+        assert np.linalg.norm(fnk[:jocc]-np.mean(fnk[:jocc]), ord='fro') < 1e-9
+
+        Om = Ck[:, :jocc].H @ Cpk[:, :jocc]
+        U, _, Vh = np.linalg.svd(Om, full_matrices=False)
+        C_phase[k][:, :jocc] = C_phase[k][:, :jocc] @ (U @ Vh)
+
+    return C_phase
+
 
 
 class DftGroundState:
@@ -103,6 +148,9 @@ class DftGroundState:
         set_atom_positions(unit_cell, pos)
 
         self.dft_obj.update()
+
+        print('DEBUG:: sum(fn) = %.9f' % np.sum(kset.fn))
+        print('DEBUG:: fn',  kset.fn)
 
         return self.dft_obj.find(
             potential_tol=self.potential_tol if tol is None else tol,
@@ -146,7 +194,8 @@ class DftWfExtrapolate(DftGroundState):
             #             for molecular dynamics of polarizable molecules,
             # 25(3), 335–342 ().  http://dx.doi.org/10.1002/jcc.10385
             Cp = self.Bm[0] * self.Cs[-1]
-            for j in range(1, self.order+1):
+            for j in range(1, len(self.Bm)):
+                # print('Bm', 'j', j, ':', self.Bm[j])
                 Cp += self.Bm[j] * self.Cs[-(j+1)] @ (self.Cs[-(j+1)].H @ self.Cs[-1])
             # orthogonalize
             Cp = loewdin(Cp)
@@ -155,22 +204,23 @@ class DftWfExtrapolate(DftGroundState):
             # store extrapolated value
             kset.C = Cp
             self._generate_density_potential(kset)
-
             res = super().update_and_find(pos)
 
             # Subspace alignment
             C = kset.C
             C_phase = align_subspace(C, Cp)
             kset.C = C_phase
-            omega = self.order / (2*self.order - 1)
+            omega = (self.order+1) / (2*self.order + 1)
             # apply corrector and append to history
-            self.Cs.append(omega*C_phase + (1-omega)*Cp)
+            print('align to previous iterate..')
+            self.Cs.append(align_subspace(loewdin(omega*C_phase + (1-omega)*Cp), self.Cs[-1]))
 
             return res
 
-        res = super().update_and_find(pos)
+        # initial steps with higher tolerance
+        res = super().update_and_find(pos, tol=1e-9)
         C = kset.C
-        self.Cs.append(C)
+        self.Cs.append(align_subspace(C, self.Cs[-1]))
         return res
 
 
