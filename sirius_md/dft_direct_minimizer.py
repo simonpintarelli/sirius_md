@@ -66,6 +66,7 @@ class MVP2Method:
         self.kset = dft_obj.k_point_set()
         potential = dft_obj.potential()
         density = dft_obj.density()
+        self.H = ApplyHamiltonian(potential, self.kset)
         # create object to compute the total energy
         self.E = Energy(self.kset, potential, density, self.H)
 
