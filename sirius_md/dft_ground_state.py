@@ -250,8 +250,7 @@ class NiklassonWfExtrapolate(DftGroundState):
 
     def __init__(self, solver, order, **kwargs):
         super().__init__(solver, **kwargs)
-        self.Cs = [self.dft_obj.k_point_set().C]
-        self.Cps = []
+        self.Cps = [self.dft_obj.k_point_set().C]
         self.order = order
 
         # Niklasson, A. M. N., Steneteg, P., Odell, A., Bock, N., Challacombe, M., Tymczak, C. J., Holmström, E.,
