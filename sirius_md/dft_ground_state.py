@@ -137,16 +137,11 @@ class DftGroundState:
         density = self.dft_obj.density()
         potential = self.dft_obj.potential()
         ctx = kset.ctx()
-        density.generate(kset)
-        if ctx.use_symmetry():
-            density.symmetrize()
-            density.symmetrize_density_matrix()
 
-        density.generate_paw_loc_density()
+        density.generate(kset)
         density.fft_transform(1)
+
         potential.generate(density)
-        if ctx.use_symmetry():
-            potential.symmetrize()
         potential.fft_transform(1)
 
     def update_and_find(self, pos, tol=None):
