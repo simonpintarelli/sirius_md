@@ -94,6 +94,11 @@ def to_cart(x, L):
     return x@L
 
 
+def from_cart(x, L):
+    assert L.shape == (3, 3)
+    return x@np.linalg.inv(L)
+
+
 def run():
     input_vars = yaml.load(open('input.yml', 'r'))
     N = input_vars['parameters']['N']
