@@ -136,7 +136,6 @@ class DftGroundState:
     def _generate_density_potential(self, kset):
         density = self.dft_obj.density()
         potential = self.dft_obj.potential()
-        ctx = kset.ctx()
 
         density.generate(kset)
         density.fft_transform(1)
@@ -144,18 +143,24 @@ class DftGroundState:
         potential.generate(density)
         potential.fft_transform(1)
 
-    def update_and_find(self, pos, tol=None):
+    def update_and_find(self, pos, C=None, tol=None):
         """
         Update positions and compute ground state
         Arguments:
         pos -- atom positions in reduced coordinates
         """
         kset = self.dft_obj.k_point_set()
+
         unit_cell = kset.ctx().unit_cell()
+
         pos = np.mod(pos, 1)
         set_atom_positions(unit_cell, pos)
-
         self.dft_obj.update()
+
+        # update density and potential after dft_obj.update (if pw have changed)
+        if C is not None:
+            kset.C = C
+            self._generate_density_potential(kset)
 
         print('DEBUG:: sum(fn) = %.9f' % np.sum(kset.fn))
         print('DEBUG:: fn',  kset.fn)
@@ -210,19 +215,12 @@ class DftWfExtrapolate(DftGroundState):
             # truncate wave function history
             self.Cs = self.Cs[1:]
             # store extrapolated value
-            align_occupied_subspace(Cp, kset.C, kset.fn)
-            kset.C = Cp
-            self._generate_density_potential(kset)
-            res = super().update_and_find(pos)
+            Cp = align_occupied_subspace(Cp, kset.C, kset.fn)
+            res = super().update_and_find(pos, C=Cp)
 
-            # Subspace alignment
-            C = kset.C
-            print('align C,Cp')
-            C_phase = align_occupied_subspace(C, Cp, kset.fn)
-            kset.C = C_phase
+            C_phase = align_occupied_subspace(kset.C, Cp, kset.fn)
             omega = (self.order+1) / (2*self.order + 1)
             # apply corrector and append to history
-            print('align to previous iterate..')
             self.Cs.append(align_occupied_subspace(loewdin(omega*C_phase + (1-omega)*Cp), self.Cs[-1], kset.fn))
 
             return res
@@ -275,20 +273,19 @@ class NiklassonWfExtrapolate(DftGroundState):
         if len(self.Cps) >= max(2, self.order+1):
             print('niklasson extrapolate')
             C = kset.C
-            CU = align_subspace(C, self.Cps[-1])
+            CU = align_occupied_subspace(C, self.Cps[-1], kset.fn)
             Cp = 2*self.Cps[-1] - self.Cps[-2] + self.coeffs[self.order]['kappa']*(CU-self.Cps[-1])
             cm = self.coeffs[self.order]['c']
             if self.order > 0:
                 for i in range(self.order+1):
                     # others
                     Cp += self.coeffs[self.order]['a'] * cm[i] * self.Cps[-(i+1)]
-            Cp = loewdin(Cp)
 
+            Cp = align_occupied_subspace(loewdin(Cp), self.Cps[-1], kset.fn)
             # append history
             self.Cps = self.Cps[1:] + [Cp, ]
 
-            kset.C = Cp
-            res = super().update_and_find(pos)
+            res = super().update_and_find(pos, C=Cp)
             return res
 
         # not enough previous values to extrapolate
