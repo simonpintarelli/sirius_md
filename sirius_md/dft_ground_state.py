@@ -174,6 +174,55 @@ class DftGroundState:
         )
 
 
+class DftObliviousGroundState:
+    """plain SCF. Forget about previous solution, no extrapolation. """
+
+    def __init__(self, solver, **kwargs):
+        self.dft_obj = solver
+        self.potential_tol = kwargs["potential_tol"]
+        self.energy_tol = kwargs["energy_tol"]
+        self.maxiter = kwargs["maxiter"]
+
+    def _generate_density_potential(self, kset):
+        density = self.dft_obj.density()
+        potential = self.dft_obj.potential()
+
+        density.generate(kset)
+        density.fft_transform(1)
+
+        potential.generate(density)
+        potential.fft_transform(1)
+
+    def update_and_find(self, pos, C=None, tol=None):
+        """
+        Update positions and compute ground state
+        Arguments:
+        pos -- atom positions in reduced coordinates
+        """
+        kset = self.dft_obj.k_point_set()
+
+        unit_cell = kset.ctx().unit_cell()
+
+        pos = np.mod(pos, 1)
+        set_atom_positions(unit_cell, pos)
+
+        self.dft_obj.update()
+        # reset wave functions
+        self.dft_obj.initial_state()
+
+        # update density and potential after dft_obj.update (if pw have changed)
+        if C is not None:
+            raise Exception('called with initial guess')
+
+        return self.dft_obj.find(
+            potential_tol=self.potential_tol if tol is None else tol,
+            energy_tol=self.energy_tol if tol is None else tol,
+            initial_tol=1e-2,
+            num_dft_iter=self.maxiter,
+            write_state=False,
+        )
+
+
 def Bm(K, j):
     """Extrapolation coefficients from Kolafa 0 < j < K+2"""
     return (-1)**(j+1) * j * binom(2*K + 2, K+1-j) / binom(2*K, K)
@@ -338,6 +387,15 @@ def make_dft(solver, parameters):
         return NiklassonWfExtrapolate(
             solver,
             order=order,
+            energy_tol=energy_tol,
+            potential_tol=potential_tol,
+            maxiter=maxiter,
+        )
+
+    if parameters["parameters"]["method"]["type"] == "oblivious":
+        # start from scratch in every time-step
+        return DftObliviousGroundState(
+            solver,
             energy_tol=energy_tol,
             potential_tol=potential_tol,
             maxiter=maxiter,
