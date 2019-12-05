@@ -58,6 +58,10 @@ class OTMethod:
         """Return SIRIUS k-point set."""
         return self.dft_obj.k_point_set()
 
+    def initial_state(self):
+        """Return SIRIUS k-point set."""
+        self.dft_obj.initial_state()
+
 
 class MVP2Method:
     """Marzari-Vanderbilt-Payne pseudo-Hamiltonian method."""
@@ -136,3 +140,7 @@ class MVP2Method:
     def k_point_set(self):
         """Return SIRIUS k-point set."""
         return self.dft_obj.k_point_set()
+
+    def initial_state(self):
+        """Return SIRIUS k-point set."""
+        self.dft_obj.initial_state()

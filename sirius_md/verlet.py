@@ -13,12 +13,13 @@ from .logger import Logger
 import time
 
 
-def initialize():
+def initialize(tol):
     """Initialize DFT_ground_state object."""
     sirius_config = json.load(open('sirius.json', 'r'))
-    sirius_config['parameters']['potential_tol'] = 1e-9
-    sirius_config['parameters']['energy_tol'] = 1e-9
-    res = DFT_ground_state_find(num_dft_iter=100, config=sirius_config)
+    sirius_config['parameters']['energy_tol'] = tol
+    sirius_config['parameters']['potential_tol'] = tol
+    res = DFT_ground_state_find(num_dft_iter=sirius_config['parameters']['num_dft_iter'],
+                                config=sirius_config)
 
     return res["kpointset"], res["density"], res["potential"], res["dft_gs"]
 
@@ -104,7 +105,7 @@ def run():
     N = input_vars['parameters']['N']
     dt = input_vars['parameters']['dt']
 
-    kset, _, _, dft_ = initialize()
+    kset, _, _, dft_ = initialize(input_vars['parameters']['energy_tol'])
 
     dft = make_dft(dft_, input_vars)
 

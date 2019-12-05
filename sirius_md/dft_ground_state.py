@@ -3,8 +3,8 @@ import numpy as np
 from scipy.special import binom
 
 from .dft_direct_minimizer import OTMethod, MVP2Method
-from sirius import set_atom_positions, l2norm
-from sirius.coefficient_array import threaded, spdiag
+from sirius import set_atom_positions
+from sirius.coefficient_array import threaded, spdiag, l2norm
 from scipy import linalg as la
 
 
@@ -275,7 +275,7 @@ class DftWfExtrapolate(DftGroundState):
             return res
 
         # initial steps with higher tolerance
-        res = super().update_and_find(pos, tol=1e-9)
+        res = super().update_and_find(pos)
         C = kset.C
         self.Cs.append(align_occupied_subspace(C, self.Cs[-1], kset.fn))
         return res
@@ -338,7 +338,7 @@ class NiklassonWfExtrapolate(DftGroundState):
             return res
 
         # not enough previous values to extrapolate
-        res = super().update_and_find(pos, tol=1e-9)
+        res = super().update_and_find(pos)
         C = kset.C
 
         # subspace alignment for initial, non-extrapolated steps
