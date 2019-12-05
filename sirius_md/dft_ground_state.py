@@ -3,8 +3,8 @@ import numpy as np
 from scipy.special import binom
 
 from .dft_direct_minimizer import OTMethod, MVP2Method
-from sirius import set_atom_positions, spdiag, l2norm
-from sirius.coefficient_array import threaded
+from sirius import set_atom_positions, l2norm
+from sirius.coefficient_array import threaded, spdiag
 from scipy import linalg as la
 
 
