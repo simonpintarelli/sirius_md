@@ -264,13 +264,14 @@ class DftWfExtrapolate(DftGroundState):
             # truncate wave function history
             self.Cs = self.Cs[1:]
             # store extrapolated value
-            Cp = align_occupied_subspace(Cp, kset.C, kset.fn)
+            # Cp = align_occupied_subspace(Cp, kset.C, kset.fn)
             res = super().update_and_find(pos, C=Cp)
 
-            C_phase = align_occupied_subspace(kset.C, Cp, kset.fn)
+            # C_phase = align_occupied_subspace(kset.C, Cp, kset.fn)
             omega = (self.order+1) / (2*self.order + 1)
             # apply corrector and append to history
-            self.Cs.append(align_occupied_subspace(loewdin(omega*C_phase + (1-omega)*Cp), self.Cs[-1], kset.fn))
+            self.Cs.append(align_occupied_subspace(loewdin(omega*kset.C + (1-omega)*Cp), self.Cs[-1], kset.fn))
+            # self.Cs.append(omega*C_phase + (1-omega)*Cp)
 
             return res
 
@@ -330,7 +331,8 @@ class NiklassonWfExtrapolate(DftGroundState):
                     # others
                     Cp += self.coeffs[self.order]['a'] * cm[i] * self.Cps[-(i+1)]
 
-            Cp = align_occupied_subspace(loewdin(Cp), self.Cps[-1], kset.fn)
+            # Cp = align_occupied_subspace(loewdin(Cp), self.Cps[-1], kset.fn)
+            Cp = loewdin(Cp)
             # append history
             self.Cps = self.Cps[1:] + [Cp, ]
 
