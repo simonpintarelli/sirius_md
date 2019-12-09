@@ -6,6 +6,7 @@ from .dft_direct_minimizer import OTMethod, MVP2Method
 from sirius import set_atom_positions
 from sirius.coefficient_array import threaded, spdiag, l2norm
 from scipy import linalg as la
+from .logger import Logger
 
 
 def loewdin(X):
@@ -261,16 +262,17 @@ class DftWfExtrapolate(DftGroundState):
                 Cp += self.Bm[j] * self.Cs[-(j+1)] @ (self.Cs[-(j+1)].H @ self.Cs[-1])
             # orthogonalize
             Cp = loewdin(Cp)
+            # Cp = align_subspace(Cp, eye_like(Cp))
             # truncate wave function history
             self.Cs = self.Cs[1:]
             # store extrapolated value
             # Cp = align_occupied_subspace(Cp, kset.C, kset.fn)
             res = super().update_and_find(pos, C=Cp)
 
-            # C_phase = align_occupied_subspace(kset.C, Cp, kset.fn)
+            C_phase = align_occupied_subspace(kset.C, Cp, kset.fn)
             omega = (self.order+1) / (2*self.order + 1)
             # apply corrector and append to history
-            self.Cs.append(align_occupied_subspace(loewdin(omega*kset.C + (1-omega)*Cp), self.Cs[-1], kset.fn))
+            self.Cs.append(align_occupied_subspace(loewdin(omega*C_phase + (1-omega)*Cp), self.Cs[-1], kset.fn))
             # self.Cs.append(omega*C_phase + (1-omega)*Cp)
 
             return res
@@ -344,7 +346,7 @@ class NiklassonWfExtrapolate(DftGroundState):
         C = kset.C
 
         # subspace alignment for initial, non-extrapolated steps
-        self.Cps.append(align_subspace(C, self.Cps[-1]))
+        self.Cps.append(align_occupied_subspace(C, self.Cps[-1], kset.fn))
         return res
 
 

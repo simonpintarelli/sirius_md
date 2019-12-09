@@ -13,13 +13,17 @@ from .logger import Logger
 import time
 
 
-def initialize(tol):
+def initialize(tol=None):
     """Initialize DFT_ground_state object."""
     sirius_config = json.load(open('sirius.json', 'r'))
-    sirius_config['parameters']['energy_tol'] = tol
-    sirius_config['parameters']['potential_tol'] = tol
-    res = DFT_ground_state_find(num_dft_iter=sirius_config['parameters']['num_dft_iter'],
-                                config=sirius_config)
+    if tol is not None:
+        sirius_config['parameters']['potential_tol'] = tol
+        sirius_config['parameters']['energy_tol'] = tol
+    else:
+        sirius_config['parameters']['potential_tol'] = 1e-10
+        sirius_config['parameters']['energy_tol'] = 1e-10
+
+    res = DFT_ground_state_find(num_dft_iter=3, config=sirius_config)
 
     return res["kpointset"], res["density"], res["potential"], res["dft_gs"]
 
@@ -57,6 +61,16 @@ class Force:
         print('band_gap: ', res['band_gap'])
         forces = np.array(self.dft.dft_obj.forces().calc_forces_total()).T
         print('nscf: ', res['num_scf_iterations'])
+
+        Logger().insert({
+            'forces': {
+                'ewald': np.array(self.dft.dft_obj.forces().ewald),
+                'vloc': np.array(self.dft.dft_obj.forces().vloc),
+                'nonloc': np.array(self.dft.dft_obj.forces().nonloc),
+                'core': np.array(self.dft.dft_obj.forces().core),
+                'scf_corr': np.array(self.dft.dft_obj.forces().scf_corr)
+            }
+        })
         # convert forces to reduced coordinates
         return forces@self.Lh.T, res['energy']['total']
 
@@ -82,10 +96,19 @@ def velocity_verlet(x, v, F, dt, Fh, m):
     xn = x + v * dt + 0.5 * F / m * dt ** 2
     t1 = time.time()
     Fn, EKS = Fh(xn)
+    gs_json = Fh.dft.dft_obj.serialize()
+
     t2 = time.time()
     vn = v + 0.5 / m * (F + Fn) * dt
-
-    Logger().insert({'t_evalforce': t2-t1})
+    # remove momentum
+    p = np.sum(vn * m, axis=0)
+    print('momentum:', p)
+    # vn -= p / np.sum(m)
+    # print('momentum (fixed):', p)
+    Logger().insert({'t_evalforce': t2-t1,
+                     'momentum': p,
+                     'energy_components': gs_json['energy'],
+                     'F': Fn})
 
     return xn, vn, Fn, EKS
 

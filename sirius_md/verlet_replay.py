@@ -11,6 +11,7 @@ def run(md_results_fname='md_results.json'):
     md_results = json.load(open(md_results_fname, 'r'))
     x_list = [d['x'] for d in md_results]
     v_list = [d['v'] for d in md_results]
+    F_list = [d['F'] for d in md_results]
 
     # use different output name
     Logger().output = 'md_replay.json'
@@ -19,7 +20,7 @@ def run(md_results_fname='md_results.json'):
     N = input_vars['parameters']['N']
     dt = input_vars['parameters']['dt']
 
-    kset, _, _, dft_ = initialize()
+    kset, _, _, dft_ = initialize(input_vars['parameters']['energy_tol'])
 
     dft = make_dft(dft_, input_vars)
 
@@ -38,7 +39,7 @@ def run(md_results_fname='md_results.json'):
     m = np.array([atom_masses[label] for label in atom_types])
     with Logger():
         # Velocity Verlet time-stepping
-        for i, (xnext, vnext) in enumerate(zip(x_list, v_list)):
+        for i, (xnext, vnext, Fnext) in enumerate(zip(x_list, v_list, F_list)):
 
             print('iteration: ', i, '\n')
 
@@ -52,6 +53,7 @@ def run(md_results_fname='md_results.json'):
                 "i": i,
                 "v": to_cart(vn, lattice_vectors),
                 "x": to_cart(xn, lattice_vectors),
+                "F": Fn,
                 "E": EKS + ekin,
                 "EKS": EKS,
                 "ekin": ekin,
@@ -67,4 +69,4 @@ def run(md_results_fname='md_results.json'):
             Logger().insert({'xerr': xerr, 'verr': verr})
             x0 = xnext
             v0 = vnext
-            F = Fn
+            F = np.array(Fnext)
