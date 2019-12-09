@@ -4,6 +4,7 @@ from sirius.ot.minimize import minimize
 from sirius.ot import Energy, ApplyHamiltonian, c
 from sirius.ot import ConstrainedGradient, make_kinetic_precond
 from sirius import get_c0_x
+import numpy as np
 
 
 class OTMethod:
@@ -61,6 +62,10 @@ class OTMethod:
     def initial_state(self):
         """Return SIRIUS k-point set."""
         self.dft_obj.initial_state()
+
+    def serialize(self):
+        """Return SIRIUS k-point set."""
+        return self.dft_obj.serialize()
 
 
 class MVP2Method:
@@ -144,3 +149,7 @@ class MVP2Method:
     def initial_state(self):
         """Return SIRIUS k-point set."""
         self.dft_obj.initial_state()
+
+    def serialize(self):
+        """Return SIRIUS k-point set."""
+        return self.dft_obj.serialize()
