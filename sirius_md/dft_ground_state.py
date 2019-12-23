@@ -17,6 +17,19 @@ def loewdin(X):
     return X @ Sm2
 
 
+@threaded
+def modified_gram_schmidt(X):
+    X = np.matrix(X, copy=False)
+    m = X.shape[1]
+    Q = np.zeros_like(X)
+    for k in range(m):
+        Q[:, k] = X[:, k]
+        for i in range(k):
+            Q[:, k] = Q[:, k] - np.tensordot(Q[:, k], np.conj(Q[:, i]), axes=2) * Q[:, i]
+        Q[:, k] = Q[:, k] / np.linalg.norm(Q[:, k])
+    return Q
+
+
 def _solve(A, X):
     """
     returns A⁻¹ X
@@ -334,7 +347,8 @@ class NiklassonWfExtrapolate(DftGroundState):
                     Cp += self.coeffs[self.order]['a'] * cm[i] * self.Cps[-(i+1)]
 
             # Cp = align_occupied_subspace(loewdin(Cp), self.Cps[-1], kset.fn)
-            Cp = loewdin(Cp)
+            Cp = modified_gram_schmidt(Cp)
+            # Cp = loewdin(Cp)
             # append history
             self.Cps = self.Cps[1:] + [Cp, ]
 
