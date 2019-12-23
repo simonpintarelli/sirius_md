@@ -6,12 +6,14 @@ import argparse
 from sirius import (DFT_ground_state_find, atom_positions,
                     initialize_subspace,
                     set_atom_positions)
+from sirius import Logger as pprinter
 
 from .atom_mass import atom_masses
 from .dft_ground_state import make_dft
 from .logger import Logger
 import time
 
+pprint = pprinter()
 
 def initialize(tol=None):
     """Initialize DFT_ground_state object."""
@@ -58,9 +60,9 @@ class Force:
         Logger().insert({'nscf': res['num_scf_iterations'],
                          'band_gap': res['band_gap'],
                          'scf_dict': res})
-        print('band_gap: ', res['band_gap'])
+        pprint('band_gap: ', res['band_gap'])
         forces = np.array(self.dft.dft_obj.forces().calc_forces_total()).T
-        print('nscf: ', res['num_scf_iterations'])
+        pprint('nscf: ', res['num_scf_iterations'])
 
         Logger().insert({
             'forces': {
@@ -102,9 +104,9 @@ def velocity_verlet(x, v, F, dt, Fh, m):
     vn = v + 0.5 / m * (F + Fn) * dt
     # remove momentum
     p = np.sum(vn * m, axis=0)
-    print('momentum:', p)
+    pprint('momentum:', p)
     # vn -= p / np.sum(m)
-    # print('momentum (fixed):', p)
+    # pprint('momentum (fixed):', p)
     Logger().insert({'t_evalforce': t2-t1,
                      'momentum': p,
                      'energy_components': gs_json['energy'],
@@ -148,13 +150,13 @@ def run():
     with Logger():
         # Velocity Verlet time-stepping
         for i in range(N):
-            print('iteration: ', i, '\n')
+            pprint('iteration: ', i, '\n')
 
             xn, vn, Fn, EKS = velocity_verlet(x0, v0, F, dt, Fh, m)
-            print("displacement: %.2e" % np.linalg.norm(xn - x0))
+            pprint("displacement: %.2e" % np.linalg.norm(xn - x0))
             vc = to_cart(vn, lattice_vectors)
             ekin = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
-            print("Etot: %10.8f, Ekin: %10.8f, Eks: %10.8f" % (EKS + ekin, ekin, EKS))
+            pprint("Etot: %10.8f, Ekin: %10.8f, Eks: %10.8f" % (EKS + ekin, ekin, EKS))
             Logger().insert(
                 {"i": i,
                  "v": to_cart(vn, lattice_vectors),

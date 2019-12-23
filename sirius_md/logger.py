@@ -1,5 +1,6 @@
 import json
 import numpy as np
+from mpi4py import MPI
 
 class Singleton(type):
     _instances = {}
@@ -55,6 +56,9 @@ class Logger(metaclass=Singleton):
         self.active = True
 
     def __exit__(self, cls, value, traceback):
+        if not MPI.COMM_WORLD.rank == 0:
+            return
+
         self.active = False
         if len(self.current) > 0:
             self.log.append(self.current)
@@ -72,7 +76,8 @@ class Logger(metaclass=Singleton):
             self.current = {}
 
         if self.ofreq is not None and len(self.current) % self.ofreq == 0:
-            with open(self.output, 'w') as fh:
-                json.dump(self.log, fh, cls=NumpyEncoder)
+            if MPI.COMM_WORLD.rank == 0:
+                with open(self.output, 'w') as fh:
+                    json.dump(self.log, fh, cls=NumpyEncoder)
 
         self.current = {**self.current, **entries}

@@ -5,9 +5,10 @@ from scipy.special import binom
 from .dft_direct_minimizer import OTMethod, MVP2Method
 from sirius import set_atom_positions
 from sirius.coefficient_array import threaded, spdiag, l2norm
+from sirius import Logger as pprinter
 from scipy import linalg as la
-from .logger import Logger
 
+pprint = pprinter()
 
 def loewdin(X):
     """ Apply Loewdin orthogonalization to wfct."""
@@ -82,9 +83,9 @@ def align_subspace(C, Cp):
     Om = C.H @ Cp
     U, _, Vh = Om.svd(full_matrices=False)
     C_phase = C @ (U @ Vh)
-    # print('U offdiag', l2norm(U-diag(diag(U))))
-    print('aligned: %.5e' % l2norm(C_phase-Cp))
-    print('unaligned: %.5e' % l2norm(C-Cp))
+    # pprint('U offdiag', l2norm(U-diag(diag(U))))
+    pprint('aligned: %.5e' % l2norm(C_phase-Cp))
+    pprint('unaligned: %.5e' % l2norm(C-Cp))
     # obtain current wave function coefficients
     return C_phase
 
@@ -176,8 +177,8 @@ class DftGroundState:
             kset.C = C
             self._generate_density_potential(kset)
 
-        print('DEBUG:: sum(fn) = %.9f' % np.sum(kset.fn))
-        print('DEBUG:: fn',  kset.fn)
+        pprint('DEBUG:: sum(fn) = %.9f' % np.sum(kset.fn))
+        pprint('DEBUG:: fn',  kset.fn)
 
         return self.dft_obj.find(
             potential_tol=self.potential_tol if tol is None else tol,
@@ -251,8 +252,8 @@ class DftWfExtrapolate(DftGroundState):
         self.order = order
         # extrapolation coefficients
         self.Bm = [Bm(order, j) for j in range(1, order+2)]
-        print('Extrapolation coefficients: ', self.Bm)
-        print('Extrapolation order: ', len(self.Bm))
+        pprint('Extrapolation coefficients: ', self.Bm)
+        pprint('Extrapolation order: ', len(self.Bm))
         assert np.isclose(np.sum(self.Bm), 1)
 
     def update_and_find(self, pos):
@@ -264,14 +265,14 @@ class DftWfExtrapolate(DftGroundState):
         kset = self.dft_obj.k_point_set()
         # obtain current wave function coefficients
         if len(self.Cs) >= self.order+1:
-            print('extrapolate')
+            pprint('extrapolate')
             # this is Eq (19) from:
             # Kolafa, J., Time-reversible always stable predictor–corrector method
             #             for molecular dynamics of polarizable molecules,
             # 25(3), 335–342 ().  http://dx.doi.org/10.1002/jcc.10385
             Cp = self.Bm[0] * self.Cs[-1]
             for j in range(1, len(self.Bm)):
-                # print('Bm', 'j', j, ':', self.Bm[j])
+                # pprint('Bm', 'j', j, ':', self.Bm[j])
                 Cp += self.Bm[j] * self.Cs[-(j+1)] @ (self.Cs[-(j+1)].H @ self.Cs[-1])
             # orthogonalize
             Cp = loewdin(Cp)
@@ -295,6 +296,12 @@ class DftWfExtrapolate(DftGroundState):
         C = kset.C
         self.Cs.append(align_occupied_subspace(C, self.Cs[-1], kset.fn))
         return res
+
+def loewdin2(X):
+    S = X.H @ X
+    w, U = S.eigh()
+    Sm2 = U @ spdiag(1/np.sqrt(w))
+    return X @ Sm2
 
 
 class NiklassonWfExtrapolate(DftGroundState):
@@ -336,9 +343,9 @@ class NiklassonWfExtrapolate(DftGroundState):
 
         kset = self.dft_obj.k_point_set()
         if len(self.Cps) >= max(2, self.order+1):
-            print('niklasson extrapolate')
+            pprint('niklasson extrapolate')
             C = kset.C
-            CU = align_occupied_subspace(C, self.Cps[-1], kset.fn)
+            CU = align_subspace(C, self.Cps[-1])
             Cp = 2*self.Cps[-1] - self.Cps[-2] + self.coeffs[self.order]['kappa']*(CU-self.Cps[-1])
             cm = self.coeffs[self.order]['c']
             if self.order > 0:
@@ -381,7 +388,6 @@ def make_dft(solver, parameters):
         if parameters["parameters"]["solver"] == "ot":
             solver = OTMethod(solver)
         if parameters["parameters"]["solver"] == "mvp2":
-            # this one is for metallic systems, only implemented for magnetic sytems
             solver = MVP2Method(solver)
 
     if parameters["parameters"]["method"]["type"] == "plain":
