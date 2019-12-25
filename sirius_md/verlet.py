@@ -117,12 +117,12 @@ def velocity_verlet(x, v, F, dt, Fh, m):
 
 def to_cart(x, L):
     assert L.shape == (3, 3)
-    return x@L
+    return x@L.T
 
 
 def from_cart(x, L):
     assert L.shape == (3, 3)
-    return x@np.linalg.inv(L)
+    return x@np.linalg.inv(L).T
 
 
 def run():
