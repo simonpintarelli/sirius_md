@@ -6,6 +6,9 @@ from sirius.ot import ConstrainedGradient, make_kinetic_precond
 from sirius import get_c0_x
 import numpy as np
 
+from sirius import Logger as pprinter
+pprint = pprinter()
+
 
 class OTMethod:
     """Orbital transformation method adaptor."""
@@ -37,7 +40,8 @@ class OTMethod:
             M=M,
             tol=float(energy_tol))
 
-        return {'converged': success, 'num_scf_iterations': niter, 'band_gap': -1, 'energy': {'total': histE[-1]}}
+        return {'converged': success, 'num_scf_iterations': niter,
+                'band_gap': -1, 'energy': {'total': histE[-1]}}
 
     def density(self):
         """Return SIRIUS density obj."""
@@ -114,8 +118,8 @@ class MVP2Method:
                                     tau=0.1,
                                     callback=make_callback(histE))
         tstop = time.time()
-        print('MVP2 took: ', tstop-tstart, ' seconds')
-        print('number of steps found by callback:', len(histE))
+        pprint('MVP2 took: ', tstop-tstart, ' seconds')
+        pprint('number of steps found by callback:', len(histE))
 
         return {
             'converged': success,
