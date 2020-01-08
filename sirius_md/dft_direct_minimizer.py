@@ -74,7 +74,9 @@ class OTMethod:
 
 class MVP2Method:
     """Marzari-Vanderbilt-Payne pseudo-Hamiltonian method."""
+
     def __init__(self, dft_obj):
+        from sirius.edft import FreeEnergy, make_fermi_dirac_smearing
         self.dft_obj = dft_obj
         self.kset = dft_obj.k_point_set()
         potential = dft_obj.potential()
@@ -83,19 +85,19 @@ class MVP2Method:
         # create object to compute the total energy
         self.E = Energy(self.kset, potential, density, self.H)
 
-    def find(self, energy_tol, num_dft_iter, **_):
-        """Find ground state by the orbital transformation method."""
-        from sirius.edft import NeugebaurCG as CG, FreeEnergy, make_fermi_dirac_smearing
-        from sirius.edft.preconditioner import make_kinetic_precond2
-        import time
-
+        # initialize free energy functional
         T = 300
         ctx = self.kset.ctx()
-
         smearing = make_fermi_dirac_smearing(T, ctx, self.kset)
+        self.M = FreeEnergy(E=self.E, T=T, smearing=smearing)
 
-        M = FreeEnergy(E=self.E, T=T, smearing=smearing)
-        cg = CG(M)
+    def find(self, energy_tol, num_dft_iter, **_):
+        """Find ground state by the orbital transformation method."""
+        from sirius.edft.preconditioner import make_kinetic_precond2
+        from sirius.edft import NeugebaurCG as CG
+        import time
+
+        cg = CG(self.M)
         K = make_kinetic_precond2(self.kset)
 
         def make_callback(histE):

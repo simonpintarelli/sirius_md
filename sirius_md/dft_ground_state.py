@@ -4,18 +4,19 @@ from scipy.special import binom
 
 from .dft_direct_minimizer import OTMethod, MVP2Method
 from sirius import set_atom_positions
-from sirius.coefficient_array import threaded, spdiag, l2norm
+from sirius.coefficient_array import threaded, spdiag, l2norm, diag
 from sirius import Logger as pprinter
 from scipy import linalg as la
 
 pprint = pprinter()
+
 
 def loewdin(X):
     """ Apply Loewdin orthogonalization to wfct."""
     S = X.H @ X
     w, U = S.eigh()
     Sm2 = U @ spdiag(1 / np.sqrt(w)) @ U.H
-    return X @ Sm2
+    return X @ Sm2, Sm2
 
 
 @threaded
@@ -82,61 +83,13 @@ def align_subspace(C, Cp):
 
     Om = C.H @ Cp
     U, _, Vh = Om.svd(full_matrices=False)
-    C_phase = C @ (U @ Vh)
+    R = U @ Vh
+    C_phase = C @ R
     # pprint('U offdiag', l2norm(U-diag(diag(U))))
     pprint('aligned: %.5e' % l2norm(C_phase-Cp))
     pprint('unaligned: %.5e' % l2norm(C-Cp))
     # obtain current wave function coefficients
-    return C_phase
-
-
-def align_occupied_subspace(C, Cp, fn):
-    """Aligns only occupied part of subspace.
-
-    Computes: U = argmin_Z || C@Z - Cp ||
-    and returns C@U.
-
-    U is given by (O@ O.H)^(-1/2) O,
-    where O = C.H@Cp.
-
-    U can be computed using svd:
-    W, s, Vh = svd(O),
-    then U = W@Vh.
-
-    For derivation see: http://dx.doi.org/10.1103/PhysRevB.45.1538.
-
-    Arguments:
-    C  -- wave function
-    Cp -- wave function
-    """
-    # Arias, T. A., Payne, M. C., & Joannopoulos, J. D.,
-    # Ab initio molecular-dynamics techniques extended to large-length-scale systems,
-    # 45(4), 1538–1549.
-    # http://dx.doi.org/10.1103/PhysRevB.45.1538
-    # See Appendix A: subspace alignment
-
-    if is_insulator(fn):
-        return align_subspace(C, Cp)
-
-    from copy import deepcopy
-    C_phase = deepcopy(C)
-
-    for k in C.keys():
-        Ck = C[k]
-        Cpk = Cp[k]
-        fnk = fn[k]
-
-        ids, = np.where(np.isclose(fnk, 0))
-        jocc = ids[0]  # first empty band
-
-        # assert all occupation numbers are equal
-        assert np.linalg.norm(fnk[:jocc]-np.mean(fnk[:jocc])) < 1e-9
-
-        Om = Ck[:, :jocc].H @ Cpk[:, :jocc]
-        U, _, Vh = np.linalg.svd(Om, full_matrices=False)
-        C_phase[k][:, :jocc] = C_phase[k][:, :jocc] @ (U @ Vh)
-
-    return C_phase
+    return C_phase, R
 
 
 class DftGroundState:
@@ -158,7 +111,7 @@ class DftGroundState:
         potential.generate(density)
         potential.fft_transform(1)
 
-    def update_and_find(self, pos, C=None, tol=None):
+    def update_and_find(self, pos, C=None, fn=None, tol=None):
         """
         Update positions and compute ground state
         Arguments:
@@ -174,6 +127,7 @@ class DftGroundState:
 
         # update density and potential after dft_obj.update (if pw have changed)
         if C is not None:
+            kset.fn = fn
             kset.C = C
             self._generate_density_potential(kset)
 
@@ -249,6 +203,7 @@ class DftWfExtrapolate(DftGroundState):
     def __init__(self, solver, order=3, **kwargs):
         super().__init__(solver, **kwargs)
         self.Cs = [self.dft_obj.k_point_set().C]
+        self.etas = [diag(self.to_eta(self.dft_obj.k_point_set().fn))]
         self.order = order
         # extrapolation coefficients
         self.Bm = [Bm(order, j) for j in range(1, order+2)]
@@ -256,12 +211,18 @@ class DftWfExtrapolate(DftGroundState):
         pprint('Extrapolation order: ', len(self.Bm))
         assert np.isclose(np.sum(self.Bm), 1)
 
+    def to_eta(self, fn):
+        return self.dft_obj.M.smearing.ek(fn)
+
+    def to_fn(self, ek):
+        fn, _  = self.dft_obj.M.smearing.fn(ek)
+        return fn
+
     def update_and_find(self, pos):
         """
         Arguments:
         pos -- atom positions in reduced coordinates
         """
-
         kset = self.dft_obj.k_point_set()
         # obtain current wave function coefficients
         if len(self.Cs) >= self.order+1:
@@ -271,9 +232,11 @@ class DftWfExtrapolate(DftGroundState):
             #             for molecular dynamics of polarizable molecules,
             # 25(3), 335–342 ().  http://dx.doi.org/10.1002/jcc.10385
             Cp = self.Bm[0] * self.Cs[-1]
+            etap = self.Bm[0] * self.etas[-1]
             for j in range(1, len(self.Bm)):
                 # pprint('Bm', 'j', j, ':', self.Bm[j])
                 Cp += self.Bm[j] * self.Cs[-(j+1)] @ (self.Cs[-(j+1)].H @ self.Cs[-1])
+                etap += self.Bm[j] * self.etas[-(j+1)]
             # orthogonalize
             Cp = loewdin(Cp)
             # Cp = align_subspace(Cp, eye_like(Cp))
@@ -281,12 +244,15 @@ class DftWfExtrapolate(DftGroundState):
             self.Cs = self.Cs[1:]
             # store extrapolated value
             # Cp = align_occupied_subspace(Cp, kset.C, kset.fn)
-            res = super().update_and_find(pos, C=Cp)
+            ek, U = etap.eigh()
+            res = super().update_and_find(pos, C=Cp@U, fn=self.to_fn(ek))
 
-            C_phase = align_occupied_subspace(kset.C, Cp, kset.fn)
+            C_phase, R = align_subspace(kset.C, Cp)
+            eta = R @ self.to_eta(kset.fn) @ R.H
             omega = (self.order+1) / (2*self.order + 1)
             # apply corrector and append to history
-            self.Cs.append(align_occupied_subspace(loewdin(omega*C_phase + (1-omega)*Cp), self.Cs[-1], kset.fn))
+            Cnext, R = align_subspace(loewdin(omega*C_phase + (1-omega)*Cp), self.Cs[-1])
+            self.Cs.append(Cnext)
             # self.Cs.append(omega*C_phase + (1-omega)*Cp)
 
             return res
@@ -294,8 +260,10 @@ class DftWfExtrapolate(DftGroundState):
         # initial steps with higher tolerance
         res = super().update_and_find(pos)
         C = kset.C
-        self.Cs.append(align_occupied_subspace(C, self.Cs[-1], kset.fn))
+        Cnext, R = align_subspace(C, self.Cs[-1])
+        self.Cs.append(Cnext)
         return res
+
 
 def loewdin2(X):
     S = X.H @ X
@@ -316,6 +284,9 @@ class NiklassonWfExtrapolate(DftGroundState):
     def __init__(self, solver, order, **kwargs):
         super().__init__(solver, **kwargs)
         self.Cps = [self.dft_obj.k_point_set().C]
+        fn = self.dft_obj.k_point_set().fn
+        eta = diag(self.to_eta(fn))
+        self.etaps = [eta]
         self.order = order
 
         # Niklasson, A. M. N., Steneteg, P., Odell, A., Bock, N., Challacombe, M., Tymczak, C. J., Holmström, E.,
@@ -335,6 +306,13 @@ class NiklassonWfExtrapolate(DftGroundState):
         if order not in self.coeffs:
             raise ValueError('invalid order given.')
 
+    def to_eta(self, fn):
+        return self.dft_obj.M.smearing.ek(fn)
+
+    def to_fn(self, ek):
+        fn, _  = self.dft_obj.M.smearing.fn(ek)
+        return fn
+
     def update_and_find(self, pos):
         """
         Arguments:
@@ -345,21 +323,26 @@ class NiklassonWfExtrapolate(DftGroundState):
         if len(self.Cps) >= max(2, self.order+1):
             pprint('niklasson extrapolate')
             C = kset.C
-            CU = align_subspace(C, self.Cps[-1])
+            CU, R = align_subspace(C, self.Cps[-1])
             Cp = 2*self.Cps[-1] - self.Cps[-2] + self.coeffs[self.order]['kappa']*(CU-self.Cps[-1])
+            ek = self.to_eta(kset.fn)
+            etap = 2*self.etaps[-1] - self.etaps[-2] + self.coeffs[self.order]['kappa'] * (R.H @ diag(ek) @ R - self.etaps[-1])
             cm = self.coeffs[self.order]['c']
             if self.order > 0:
                 for i in range(self.order+1):
                     # others
                     Cp += self.coeffs[self.order]['a'] * cm[i] * self.Cps[-(i+1)]
+                    etap += self.coeffs[self.order]['a'] * cm[i] * self.etaps[-(i+1)]
 
             # Cp = align_occupied_subspace(loewdin(Cp), self.Cps[-1], kset.fn)
             Cp = modified_gram_schmidt(Cp)
+
+            ek, U = etap.eigh()
             # Cp = loewdin(Cp)
             # append history
             self.Cps = self.Cps[1:] + [Cp, ]
-
-            res = super().update_and_find(pos, C=Cp)
+            self.etaps = self.etaps[1:] + [etap, ]
+            res = super().update_and_find(pos, C=Cp@U, fn=self.to_fn(ek))
             return res
 
         # not enough previous values to extrapolate
@@ -367,7 +350,9 @@ class NiklassonWfExtrapolate(DftGroundState):
         C = kset.C
 
         # subspace alignment for initial, non-extrapolated steps
-        self.Cps.append(align_occupied_subspace(C, self.Cps[-1], kset.fn))
+        Cnext, R = align_subspace(C, self.Cps[-1])
+        self.Cps.append(Cnext)
+        self.etaps.append(R.H @ diag(self.to_eta(kset.fn)) @ R)
         return res
 
 
