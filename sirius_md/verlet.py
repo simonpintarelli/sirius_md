@@ -99,6 +99,8 @@ def velocity_verlet(x, v, F, dt, Fh, m):
     t1 = time.time()
     Fn, EKS = Fh(xn)
     gs_json = Fh.dft.dft_obj.serialize()
+    # atomic moments
+    mm = np.array(Fh.dft.dft_obj.E.density.compute_atomic_mag_mom()).T
 
     t2 = time.time()
     vn = v + 0.5 / m * (F + Fn) * dt
@@ -110,6 +112,7 @@ def velocity_verlet(x, v, F, dt, Fh, m):
     Logger().insert({'t_evalforce': t2-t1,
                      'momentum': p,
                      'energy_components': gs_json['energy'],
+                     'atomic_mag_mom': mm,
                      'F': Fn})
 
     return xn, vn, Fn, EKS
