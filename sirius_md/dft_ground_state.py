@@ -244,11 +244,12 @@ class DftWfExtrapolate(DftGroundState):
 
             # diagonalize eta and solve ground state
             ek, U = etap.eigh()
+            print('ek', ek)
             res = super().update_and_find(pos, C=Cp@U, fn=self.to_fn(ek))
 
             C_phase, R = align_subspace(kset.C, Cp)
             omega = (self.order+1) / (2*self.order + 1)
-            eta_phase =R.H @ diag(self.to_eta(kset.fn)) @ R
+            eta_phase = R.H @ diag(self.to_eta(kset.fn)) @ R
             # apply corrector and append to history
             C_next, R = align_subspace(modified_gram_schmidt(omega*C_phase + (1-omega)*Cp), self.Cs[-1])
             eta_next = R.H @ (omega * eta_phase  + (1-omega) * etap) @ R
