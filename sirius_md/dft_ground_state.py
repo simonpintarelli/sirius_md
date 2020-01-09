@@ -16,7 +16,7 @@ def loewdin(X):
     S = X.H @ X
     w, U = S.eigh()
     Sm2 = U @ spdiag(1 / np.sqrt(w)) @ U.H
-    return X @ Sm2, Sm2
+    return X @ Sm2
 
 
 @threaded
@@ -238,22 +238,24 @@ class DftWfExtrapolate(DftGroundState):
                 Cp += self.Bm[j] * self.Cs[-(j+1)] @ (self.Cs[-(j+1)].H @ self.Cs[-1])
                 etap += self.Bm[j] * self.etas[-(j+1)]
             # orthogonalize
-            Cp = loewdin(Cp)
-            # Cp = align_subspace(Cp, eye_like(Cp))
+            Cp = modified_gram_schmidt(Cp)
             # truncate wave function history
             self.Cs = self.Cs[1:]
-            # store extrapolated value
-            # Cp = align_occupied_subspace(Cp, kset.C, kset.fn)
+
+            # diagonalize eta and solve ground state
             ek, U = etap.eigh()
             res = super().update_and_find(pos, C=Cp@U, fn=self.to_fn(ek))
 
             C_phase, R = align_subspace(kset.C, Cp)
-            eta = R @ self.to_eta(kset.fn) @ R.H
             omega = (self.order+1) / (2*self.order + 1)
+            eta_phase =R.H @ diag(self.to_eta(kset.fn)) @ R
             # apply corrector and append to history
-            Cnext, R = align_subspace(loewdin(omega*C_phase + (1-omega)*Cp), self.Cs[-1])
-            self.Cs.append(Cnext)
-            # self.Cs.append(omega*C_phase + (1-omega)*Cp)
+            C_next, R = align_subspace(modified_gram_schmidt(omega*C_phase + (1-omega)*Cp), self.Cs[-1])
+            eta_next = R.H @ (omega * eta_phase  + (1-omega) * etap) @ R
+
+            # apply subspace alignment to eta
+            self.Cs.append(C_next)
+            self.etas.append(eta_next)
 
             return res
 
@@ -262,6 +264,7 @@ class DftWfExtrapolate(DftGroundState):
         C = kset.C
         Cnext, R = align_subspace(C, self.Cs[-1])
         self.Cs.append(Cnext)
+        self.etas.append(R.H @ self.to_eta(kset.fn) @ R)
         return res
 
 
