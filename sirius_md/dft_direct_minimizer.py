@@ -109,8 +109,8 @@ class MVP2Method:
         X = self.kset.C
         fn = self.kset.fn
         histE = []
-        X, fn, FE, success = cg.run(X,
-                                    fn,
+        X, fn, FE, success = cg.run(X=X,
+                                    fn=fn,
                                     tol=energy_tol,
                                     K=K,
                                     maxiter=num_dft_iter,
