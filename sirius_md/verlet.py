@@ -13,16 +13,18 @@ from .dft_ground_state import make_dft
 from .logger import Logger
 import time
 
+__all__ = ["run", "Force"]
+
 pprint = pprinter()
 
 def initialize(tol=None):
     """Initialize DFT_ground_state object."""
     sirius_config = json.load(open('sirius.json', 'r'))
     if tol is not None:
-        sirius_config['parameters']['potential_tol'] = tol
+        sirius_config['parameters']['density_tol'] = tol
         sirius_config['parameters']['energy_tol'] = tol
     else:
-        sirius_config['parameters']['potential_tol'] = 1e-10
+        sirius_config['parameters']['density_tol'] = 1e-10
         sirius_config['parameters']['energy_tol'] = 1e-10
 
     res = DFT_ground_state_find(num_dft_iter=3, config=sirius_config)

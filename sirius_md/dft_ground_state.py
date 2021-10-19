@@ -1,4 +1,5 @@
 """Wrappers for SIRIUS DFT_ground_state class"""
+from time import perf_counter_ns
 import numpy as np
 from scipy.special import binom
 
@@ -97,7 +98,7 @@ class DftGroundState:
 
     def __init__(self, solver, **kwargs):
         self.dft_obj = solver
-        self.potential_tol = kwargs["potential_tol"]
+        self.density_tol = kwargs["density_tol"]
         self.energy_tol = kwargs["energy_tol"]
         self.maxiter = kwargs["maxiter"]
 
@@ -105,11 +106,12 @@ class DftGroundState:
         density = self.dft_obj.density()
         potential = self.dft_obj.potential()
 
-        density.generate(kset)
-        density.fft_transform(1)
-
-        potential.generate(density)
-        potential.fft_transform(1)
+        density.generate(
+            kset, symmetrize=False, transform_to_rg=True
+        )
+        potential.generate(
+            density, use_sym=False, transform_to_rg=True
+        )
 
     def update_and_find(self, pos, C=None, fn=None, tol=None):
         """
@@ -131,11 +133,11 @@ class DftGroundState:
             kset.C = C
             self._generate_density_potential(kset)
 
-        pprint('DEBUG:: sum(fn) = %.9f' % np.sum(kset.fn))
-        pprint('DEBUG:: fn',  kset.fn)
+        # pprint('DEBUG:: sum(fn) = %.9f' % np.sum(kset.fn))
+        # pprint('DEBUG:: fn',  kset.fn)
 
         return self.dft_obj.find(
-            potential_tol=self.potential_tol if tol is None else tol,
+            density_tol=self.density_tol if tol is None else tol,
             energy_tol=self.energy_tol if tol is None else tol,
             initial_tol=1e-2,
             num_dft_iter=self.maxiter,
@@ -148,7 +150,7 @@ class DftObliviousGroundState:
 
     def __init__(self, solver, **kwargs):
         self.dft_obj = solver
-        self.potential_tol = kwargs["potential_tol"]
+        self.density_tol = kwargs["density_tol"]
         self.energy_tol = kwargs["energy_tol"]
         self.maxiter = kwargs["maxiter"]
 
@@ -184,7 +186,7 @@ class DftObliviousGroundState:
             raise Exception('called with initial guess')
 
         return self.dft_obj.find(
-            potential_tol=self.potential_tol if tol is None else tol,
+            density_tol=self.density_tol if tol is None else tol,
             energy_tol=self.energy_tol if tol is None else tol,
             initial_tol=1e-2,
             num_dft_iter=self.maxiter,
@@ -325,7 +327,7 @@ class NiklassonWfExtrapolate(DftGroundState):
 
         kset = self.dft_obj.k_point_set()
         if len(self.Cps) >= max(2, self.order+1):
-            pprint('niklasson extrapolate')
+            pprint('Niklasson extrapolate')
             C = kset.C
             CU, R = align_subspace(C, self.Cps[-1])
             Cp = 2*self.Cps[-1] - self.Cps[-2] + self.coeffs[self.order]['kappa']*(CU-self.Cps[-1])
@@ -333,7 +335,7 @@ class NiklassonWfExtrapolate(DftGroundState):
             etap = 2*self.etaps[-1] - self.etaps[-2] + self.coeffs[self.order]['kappa'] * (R.H @ diag(ek) @ R - self.etaps[-1])
             cm = self.coeffs[self.order]['c']
             if self.order > 0:
-                for i in range(self.order+1):
+                for i in range(0, self.order+1):
                     # others
                     Cp += self.coeffs[self.order]['a'] * cm[i] * self.Cps[-(i+1)]
                     etap += self.coeffs[self.order]['a'] * cm[i] * self.etaps[-(i+1)]
@@ -369,8 +371,9 @@ def make_dft(solver, parameters):
     """
 
     maxiter = parameters["parameters"]["maxiter"]
-    potential_tol = parameters["parameters"]["potential_tol"]
+    # density_tol = parameters["parameters"]["density_tol"]
     energy_tol = parameters["parameters"]["energy_tol"]
+    density_tol = energy_tol
 
     # replace solver if OTMethod or MVP2 is used
     if "solver" in parameters["parameters"]:
@@ -383,7 +386,7 @@ def make_dft(solver, parameters):
         return DftGroundState(
             solver,
             energy_tol=energy_tol,
-            potential_tol=potential_tol,
+            density_tol=density_tol,
             maxiter=maxiter,
         )
     if parameters["parameters"]["method"]["type"] == "kolafa":
@@ -392,7 +395,7 @@ def make_dft(solver, parameters):
             solver,
             order=order,
             energy_tol=energy_tol,
-            potential_tol=potential_tol,
+            density_tol=density_tol,
             maxiter=maxiter,
         )
     if parameters["parameters"]["method"]["type"] == "niklasson_wf":
@@ -401,7 +404,7 @@ def make_dft(solver, parameters):
             solver,
             order=order,
             energy_tol=energy_tol,
-            potential_tol=potential_tol,
+            density_tol=density_tol,
             maxiter=maxiter,
         )
 
@@ -410,7 +413,7 @@ def make_dft(solver, parameters):
         return DftObliviousGroundState(
             solver,
             energy_tol=energy_tol,
-            potential_tol=potential_tol,
+            density_tol=density_tol,
             maxiter=maxiter,
         )
 
