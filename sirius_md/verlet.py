@@ -3,9 +3,7 @@ import yaml
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
-from sirius import (DFT_ground_state_find, atom_positions,
-                    initialize_subspace,
-                    set_atom_positions)
+from sirius import (DFT_ground_state_find, atom_positions, set_atom_positions)
 from sirius import Logger as pprinter
 
 from .atom_mass import atom_masses
@@ -126,7 +124,7 @@ def from_cart(x, L):
 
 
 def run():
-    input_vars = yaml.load(open('input.yml', 'r'))
+    input_vars = yaml.safe_load(open('input.yml', 'r'))
     N = input_vars['parameters']['N']
     dt = input_vars['parameters']['dt']
 
