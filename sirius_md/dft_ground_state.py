@@ -152,11 +152,17 @@ class DftGroundState:
         density = self.dft_obj.density()
         potential = self.dft_obj.potential()
 
-        density.generate(kset)
-        density.fft_transform(1)
+        use_sym = kset.ctx().use_symmetry()
 
-        potential.generate(density)
-        potential.fft_transform(1)
+        density.generate(kset,
+                         use_sym,
+                         False, # add core (only for lapw)
+                         True # transform to real space grid
+                         )
+
+        potential.generate(density, use_sym,
+                           True # transform to real space grid
+                           )
 
     def update_and_find(self, pos, C=None, tol=None):
         """
