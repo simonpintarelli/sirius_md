@@ -13,15 +13,23 @@ import time
 
 pprint = pprinter()
 
-def initialize(tol=None):
+def initialize(tol=None, atom_positions=None):
     """Initialize DFT_ground_state object."""
     sirius_config = json.load(open('sirius.json', 'r'))
+
     if tol is not None:
         sirius_config['parameters']['potential_tol'] = tol
         sirius_config['parameters']['energy_tol'] = tol
     else:
         sirius_config['parameters']['potential_tol'] = 1e-10
         sirius_config['parameters']['energy_tol'] = 1e-10
+
+    if atom_positions:
+        sirius_config['unit_cell']['atom_coordinate_units'] = 'Angstrom'
+        for atom in sirius_config['unit_cell']['atoms']:
+            n = len(sirius_config['unit_cell']['atoms'][atom])
+            positions = [atom_positions.pop(0) for _ in range(n)]
+            sirius_config['unit_cell']['atoms'][atom] = positions
 
     res = DFT_ground_state_find(num_dft_iter=3, config=sirius_config)
 
@@ -124,11 +132,23 @@ def from_cart(x, L):
 
 
 def run():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--restart', nargs='?', type=argparse.FileType('r'))
+    args = parser.parse_args()
+
     input_vars = yaml.safe_load(open('input.yml', 'r'))
     N = input_vars['parameters']['N']
     dt = input_vars['parameters']['dt']
 
-    kset, _, _, dft_ = initialize(input_vars['parameters']['energy_tol'])
+    initial_positions = None
+    initial_velocities = None
+    if args.restart:
+        restart_data = json.load(args.restart)
+        initial_positions = restart_data[-1]['x']
+        initial_velocities = restart_data[-1]['v']
+
+    kset, _, _, dft_ = initialize(input_vars['parameters']['energy_tol'], initial_positions)
 
     dft = make_dft(dft_, input_vars)
 
@@ -139,7 +159,12 @@ def run():
 
     x0 = atom_positions(unit_cell)
     F, EKS = Fh(x0)
-    v0 = np.zeros_like(x0)
+
+    if initial_velocities:
+        v0 = from_cart(initial_velocities, lattice_vectors)
+    else:
+        v0 = np.zeros_like(x0)
+
     na = len(x0)  # number of atoms
     atom_types = [unit_cell.atom(i).label for i in range(na)]
     # masses in A_r
