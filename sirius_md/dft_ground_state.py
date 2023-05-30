@@ -2,11 +2,12 @@
 import numpy as np
 from scipy.special import binom
 
-from .dft_direct_minimizer import OTMethod, MVP2Method
+from .dft_direct_minimizer import OTMethod, MVP2Method, Shake
 from sirius import set_atom_positions
 from sirius.coefficient_array import threaded, spdiag, l2norm
 from sirius import Logger as pprinter
 from scipy import linalg as la
+from sirius.coefficient_array import zeros_like
 
 pprint = pprinter()
 
@@ -136,6 +137,7 @@ def align_occupied_subspace(C, Cp, fn):
         U, _, Vh = np.linalg.svd(Om, full_matrices=False)
         C_phase[k][:, :jocc] = C_phase[k][:, :jocc] @ (U @ Vh)
 
+
     return C_phase
 
 
@@ -163,6 +165,15 @@ class DftGroundState:
         potential.generate(density, use_sym,
                            True # transform to real space grid
                            )
+    def apply_pbc(self, pos):
+        kset = self.dft_obj.k_point_set()
+        unit_cell = kset.ctx().unit_cell()
+        pos = np.mod(pos, 1)
+        set_atom_positions(unit_cell, pos)
+        self.dft_obj.update()
+        return pos
+        
+
 
     def update_and_find(self, pos, C=None, tol=None):
         """
@@ -192,6 +203,8 @@ class DftGroundState:
             initial_tol=1e-2,
             num_dft_iter=self.maxiter,
             write_state=False,
+            C = kset.C,
+            fn = kset.fn
         )
 
 
@@ -248,6 +261,35 @@ def Bm(K, j):
     """Extrapolation coefficients from Kolafa 0 < j < K+2"""
     return (-1)**(j+1) * j * binom(2*K + 2, K+1-j) / binom(2*K, K)
 
+class Cpmd(DftGroundState):
+    def __init__(self, solver, dt, m,order = 3 ,**kwargs):
+        super().__init__(solver, **kwargs)
+        kset = self.dft_obj.k_point_set()
+        C = kset.C #This and the previous line are only to create self.V
+        self.V = zeros_like(C)
+        self.dt = dt
+        self.m = m
+        self.Hx = None 
+
+    def update_and_find(self, pos):
+        kset = self.dft_obj.k_point_set()
+        Etot, Hx = self.dft_obj.compute_Hx(kset.C, kset.fn)
+        if self.Hx is not None: #If self.Hx==None we are in the first call of Fh, before the main loop
+            force_average = (self.Hx+Hx)/self.m
+            self.V = self.V + self.dt*0.5*force_average#update V 
+        self.Hx = Hx
+        C = kset.C
+        C =  C + self.V*self.dt-0.5*self.Hx*self.dt**2 
+        #Ortogonalizing by hand. This should be replaced by SHAKE/RATTLE
+        magnitudes = np.linalg.norm(C[0,0], axis=0)
+        C[0,0] = C[0,0]/magnitudes
+        C = loewdin(C)
+        #Update density
+        kset.C = C
+        self._generate_density_potential(kset)
+
+        return {'converged': "-", 'num_scf_iterations': "-",
+        'band_gap': -1, 'energy': {'total': Etot}}
 
 class DftWfExtrapolate(DftGroundState):
     """extrapolate wave functions."""
@@ -395,6 +437,8 @@ def make_dft(solver, parameters):
             solver = OTMethod(solver)
         if parameters["parameters"]["solver"] == "mvp2":
             solver = MVP2Method(solver)
+        if parameters["parameters"]["solver"] == "shake":
+            solver = Shake(solver)
 
     if parameters["parameters"]["method"]["type"] == "plain":
         return DftGroundState(
@@ -430,5 +474,15 @@ def make_dft(solver, parameters):
             potential_tol=potential_tol,
             maxiter=maxiter,
         )
-
+    if parameters["parameters"]["method"]["type"] == "cp":
+        print("We are going to use Carr-Parrinello MD! :D")
+        dt = parameters['parameters']['dt']
+        m = 1000 # Electronic mass 
+        return Cpmd(solver,
+            dt,
+            m,
+            energy_tol=energy_tol,
+            potential_tol=potential_tol,
+            maxiter=maxiter,
+        )
     raise ValueError("invalid extrapolation method")

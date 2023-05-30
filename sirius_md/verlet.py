@@ -13,10 +13,9 @@ import time
 
 pprint = pprinter()
 
-def initialize(tol=None, atom_positions=None):
+def initialize(tol=None):
     """Initialize DFT_ground_state object."""
     sirius_config = json.load(open('sirius.json', 'r'))
-
     if tol is not None:
         sirius_config['parameters']['potential_tol'] = tol
         sirius_config['parameters']['energy_tol'] = tol
@@ -24,14 +23,7 @@ def initialize(tol=None, atom_positions=None):
         sirius_config['parameters']['potential_tol'] = 1e-10
         sirius_config['parameters']['energy_tol'] = 1e-10
 
-    if atom_positions:
-        sirius_config['unit_cell']['atom_coordinate_units'] = 'Angstrom'
-        for atom in sirius_config['unit_cell']['atoms']:
-            n = len(sirius_config['unit_cell']['atoms'][atom])
-            positions = [atom_positions.pop(0) for _ in range(n)]
-            sirius_config['unit_cell']['atoms'][atom] = positions
-
-    res = DFT_ground_state_find(num_dft_iter=3, config=sirius_config)
+    res = DFT_ground_state_find(num_dft_iter=100, config=sirius_config)
 
     return res["kpointset"], res["density"], res["potential"], res["dft_gs"]
 
@@ -61,6 +53,7 @@ class Force:
         """
         # apply periodic boundary conditions
         res = self.dft.update_and_find(pos)
+        print(f"{res['converged']}")
         if not res['converged']:
             raise ScfConvergenceError('failed to converge')
         Logger().insert({'nscf': res['num_scf_iterations'],
@@ -68,6 +61,51 @@ class Force:
                          'scf_dict': res})
         pprint('band_gap: ', res['band_gap'])
         forces = np.array(self.dft.dft_obj.forces().calc_forces_total()).T
+        pprint('nscf: ', res['num_scf_iterations'])
+
+        Logger().insert({
+            'forces': {
+                'ewald': np.array(self.dft.dft_obj.forces().ewald),
+                'vloc': np.array(self.dft.dft_obj.forces().vloc),
+                'nonloc': np.array(self.dft.dft_obj.forces().nonloc),
+                'core': np.array(self.dft.dft_obj.forces().core),
+                'scf_corr': np.array(self.dft.dft_obj.forces().scf_corr)
+            }
+        })
+        # convert forces to reduced coordinates
+        return forces@self.Lh.T, res['energy']['total']
+
+class Force_CPMD:
+    """Compute forces. The changes with respect to Force is that we apply boundary conditions without calling self.dft.update_and_find(pos) and the force is computed first  and afterwards we call self.dft.update_and_find(pos)"""
+
+    def __init__(self, dft):
+        self.dft = dft
+        self.unit_cell = dft.dft_obj.k_point_set().ctx().unit_cell()
+        self.L = self.unit_cell.lattice_vectors()
+        self.Lh = np.linalg.inv(self.L)
+
+    def __call__(self, pos):
+        """Computes ground state for updated positions and returns total energy and forces.
+        Hint: no extrapolation is done
+        Arguments:
+        - pos Atom poitions in reduced coordinates
+
+        Returns:
+        - forces (in reduced coordinates)
+        - Etot
+        """
+        # apply periodic boundary conditions
+        pos = self.dft.apply_pbc(pos)
+        forces = np.array(self.dft.dft_obj.forces().calc_forces_total()).T
+
+        res = self.dft.update_and_find(pos)
+        print(f"{res['converged']}")
+        if not res['converged']:
+            raise ScfConvergenceError('failed to converge')
+        Logger().insert({'nscf': res['num_scf_iterations'],
+                         'band_gap': res['band_gap'],
+                         'scf_dict': res})
+        pprint('band_gap: ', res['band_gap'])
         pprint('nscf: ', res['num_scf_iterations'])
 
         Logger().insert({
@@ -130,45 +168,37 @@ def from_cart(x, L):
     assert L.shape == (3, 3)
     return x@np.linalg.inv(L).T
 
+def boltzmann_velocities(m, kT):
+    num_atoms = len(m)
+    m = m[:, np.newaxis]
+    factors = np.sqrt(kT/m)
+    return np.random.normal(loc=0, scale = factors, size=(num_atoms, 3)) #Assuming 3D simulations
+
+
+
 
 def run():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('--restart', nargs='?', type=argparse.FileType('r'))
-    args = parser.parse_args()
-
     input_vars = yaml.safe_load(open('input.yml', 'r'))
     N = input_vars['parameters']['N']
     dt = input_vars['parameters']['dt']
 
-    initial_positions = None
-    initial_velocities = None
-    if args.restart:
-        restart_data = json.load(args.restart)
-        initial_positions = restart_data[-1]['x']
-        initial_velocities = restart_data[-1]['v']
-
-    kset, _, _, dft_ = initialize(input_vars['parameters']['energy_tol'], initial_positions)
+    kset, _, _, dft_ = initialize(input_vars['parameters']['energy_tol'])
 
     dft = make_dft(dft_, input_vars)
 
     unit_cell = kset.ctx().unit_cell()
     lattice_vectors = np.array(unit_cell.lattice_vectors())
 
-    Fh = Force(dft)
+    Fh = Force_CPMD(dft)
 
     x0 = atom_positions(unit_cell)
     F, EKS = Fh(x0)
-
-    if initial_velocities:
-        v0 = from_cart(initial_velocities, lattice_vectors)
-    else:
-        v0 = np.zeros_like(x0)
-
     na = len(x0)  # number of atoms
     atom_types = [unit_cell.atom(i).label for i in range(na)]
     # masses in A_r
     m = np.array([atom_masses[label] for label in atom_types])
+    v0 =np.zeros_like(x0)#boltzmann_velocities(m, .001) #np.zeros_like(x0)
+    print(f"{v0}")
 
     with Logger():
         # Velocity Verlet time-stepping
@@ -189,7 +219,6 @@ def run():
             x0 = xn
             v0 = vn
             F = Fn
-
 
 if __name__ == '__main__':
     run()

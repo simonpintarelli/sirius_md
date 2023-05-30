@@ -9,6 +9,54 @@ import numpy as np
 from sirius import Logger as pprinter
 pprint = pprinter()
 
+class Shake:
+    """Shake solver"""
+    def __init__(self, dft_obj):
+        self.dft_obj = dft_obj
+        self.kset = dft_obj.k_point_set()
+        potential = dft_obj.potential()
+        density = dft_obj.density()
+        # Hamiltonian, provides gradient H|Ψ>
+        self.H = ApplyHamiltonian(potential, self.kset)
+        # create object to compute the total energy
+        self.E = Energy(self.kset, potential, density, self.H)
+
+    def find(self, energy_tol, num_dft_iter, C,fn, **_):
+        Etot, Hx = self.E.compute(C, fn)
+        return {'converged': "-", 'num_scf_iterations': "-",
+                'band_gap': -1, 'energy': {'total': Etot},'Hx': Hx}
+
+    def compute_Hx(self, C, fn):
+        Etot, Hx = self.E.compute(C, fn)
+        return Etot, Hx
+
+    def density(self):
+        """Return SIRIUS density obj."""
+        return self.dft_obj.density()
+
+    def potential(self):
+        """Return SIRIUS potential obj."""
+        return self.dft_obj.potential()
+
+    def forces(self):
+        """Returns SIRIUS forces obj."""
+        return self.dft_obj.forces()
+
+    def update(self):
+        """Call DFT_ground_state.update"""
+        return self.dft_obj.update()
+
+    def k_point_set(self):
+        """Return SIRIUS k-point set."""
+        return self.dft_obj.k_point_set()
+
+    def initial_state(self):
+        """Return SIRIUS k-point set."""
+        self.dft_obj.initial_state()
+
+    def serialize(self):
+        """Return SIRIUS k-point set."""
+        return self.dft_obj.serialize()
 
 class OTMethod:
     """Orbital transformation method adaptor."""

@@ -6,15 +6,19 @@ Methods:
     type: kolafa
     order: 3
 
+  - &cp    
+    type: cp
+
 parameters:
-  method: *plain
+  method: *cp
   # solver: either ot (orbital transformation method) or scf (standard self-consistent field)
-  solver: ot
+  solver: shake 
   # maximal number of scf iterations
-  maxiter: 30
+  maxiter: 300
   potential_tol: 1.0e-4
+    # original energy_tol: 1.0e-4
   energy_tol: 1.0e-4
   # time step in fs
-  dt: 1
+  dt: 0.1
   # number of time steps
   N: 100
