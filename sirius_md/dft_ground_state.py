@@ -279,7 +279,9 @@ class Cpmd(DftGroundState):
             self.V = self.V + self.dt*0.5*force_average#update V 
         self.Hx = Hx
         C = kset.C
-        C =  C + self.V*self.dt-0.5*self.Hx*self.dt**2 
+        C =  C + self.V*self.dt-(0.5*self.Hx*self.dt**2)/self.m 
+        #X = self.dft_obj.pos_multipliers(C,Cp,1) #TODO: Check orthonormality as a function of the number of steps!
+        #C = Cp + X * C # This should be already orthonormal
         #Ortogonalizing by hand. This should be replaced by SHAKE/RATTLE
         magnitudes = np.linalg.norm(C[0,0], axis=0)
         C[0,0] = C[0,0]/magnitudes

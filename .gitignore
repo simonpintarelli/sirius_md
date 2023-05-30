@@ -1,3 +1,4 @@
 /examples/diamond/results/
 /examples/diamond/md_results.json
 /examples/diamond/verlet.out
+__pycache__/
