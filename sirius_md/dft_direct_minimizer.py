@@ -10,10 +10,43 @@ from sirius import Logger as pprinter
 pprint = pprinter()
 
 
-class OTMethod:
-    """Orbital transformation method adaptor."""
+class solver_base:
     def __init__(self, dft_obj):
         self.dft_obj = dft_obj
+
+     def density(self):
+        """Return SIRIUS density obj."""
+        return self.dft_obj.density()
+
+    def potential(self):
+        """Return SIRIUS potential obj."""
+        return self.dft_obj.potential()
+
+    def forces(self):
+        """Returns SIRIUS forces obj."""
+        return self.dft_obj.forces()
+
+    def update(self):
+        """Call DFT_ground_state.update"""
+        return self.dft_obj.update()
+
+    def k_point_set(self):
+        """Return SIRIUS k-point set."""
+        return self.dft_obj.k_point_set()
+
+    def initial_state(self):
+        """Return SIRIUS k-point set."""
+        self.dft_obj.initial_state()
+
+    def serialize(self):
+        """Return SIRIUS k-point set."""
+        return self.dft_obj.serialize()
+
+
+class OTMethod(solver_base):
+    """Orbital transformation method adaptor."""
+    def __init__(self, dft_obj):
+        super().__init__(dft_obj)
         self.kset = dft_obj.k_point_set()
         potential = dft_obj.potential()
         density = dft_obj.density()
@@ -43,39 +76,12 @@ class OTMethod:
         return {'converged': success, 'num_scf_iterations': niter,
                 'band_gap': -1, 'energy': {'total': histE[-1]}}
 
-    def density(self):
-        """Return SIRIUS density obj."""
-        return self.dft_obj.density()
 
-    def potential(self):
-        """Return SIRIUS potential obj."""
-        return self.dft_obj.potential()
-
-    def forces(self):
-        """Returns SIRIUS forces obj."""
-        return self.dft_obj.forces()
-
-    def update(self):
-        """Call DFT_ground_state.update"""
-        return self.dft_obj.update()
-
-    def k_point_set(self):
-        """Return SIRIUS k-point set."""
-        return self.dft_obj.k_point_set()
-
-    def initial_state(self):
-        """Return SIRIUS k-point set."""
-        self.dft_obj.initial_state()
-
-    def serialize(self):
-        """Return SIRIUS k-point set."""
-        return self.dft_obj.serialize()
-
-
-class MVP2Method:
+class MVP2Method(solver_base):
     """Marzari-Vanderbilt-Payne pseudo-Hamiltonian method."""
     def __init__(self, dft_obj):
-        self.dft_obj = dft_obj
+        super().__init__(dft_obj)
+
         self.kset = dft_obj.k_point_set()
         potential = dft_obj.potential()
         density = dft_obj.density()
@@ -129,31 +135,3 @@ class MVP2Method:
                 'total': FE
             }
         }
-
-    def density(self):
-        """Return SIRIUS density obj."""
-        return self.dft_obj.density()
-
-    def potential(self):
-        """Return SIRIUS potential obj."""
-        return self.dft_obj.potential()
-
-    def forces(self):
-        """Returns SIRIUS forces obj."""
-        return self.dft_obj.forces()
-
-    def update(self):
-        """Call DFT_ground_state.update"""
-        return self.dft_obj.update()
-
-    def k_point_set(self):
-        """Return SIRIUS k-point set."""
-        return self.dft_obj.k_point_set()
-
-    def initial_state(self):
-        """Return SIRIUS k-point set."""
-        self.dft_obj.initial_state()
-
-    def serialize(self):
-        """Return SIRIUS k-point set."""
-        return self.dft_obj.serialize()

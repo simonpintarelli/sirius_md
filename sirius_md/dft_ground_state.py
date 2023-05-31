@@ -2,7 +2,7 @@
 import numpy as np
 from scipy.special import binom
 
-from .dft_direct_minimizer import OTMethod, MVP2Method
+from .dft_direct_minimizer import OTMethod, MVP2Method, solver_base
 from sirius import set_atom_positions
 from sirius.coefficient_array import threaded, spdiag, l2norm
 from sirius import Logger as pprinter
@@ -198,15 +198,15 @@ class DftGroundState:
 class DftObliviousGroundState:
     """plain SCF. Forget about previous solution, no extrapolation. """
 
-    def __init__(self, solver, **kwargs):
-        self.dft_obj = solver
+    def __init__(self, solver : solver_base, **kwargs):
+        self.ground_state_solver = solver
         self.potential_tol = kwargs["potential_tol"]
         self.energy_tol = kwargs["energy_tol"]
         self.maxiter = kwargs["maxiter"]
 
     def _generate_density_potential(self, kset):
-        density = self.dft_obj.density()
-        potential = self.dft_obj.potential()
+        density = self.ground_state_solver.density()
+        potential = self.ground_state_solver.potential()
 
         density.generate(kset)
         density.fft_transform(1)
@@ -220,22 +220,22 @@ class DftObliviousGroundState:
         Arguments:
         pos -- atom positions in reduced coordinates
         """
-        kset = self.dft_obj.k_point_set()
+        kset = self.ground_state_solver.k_point_set()
 
         unit_cell = kset.ctx().unit_cell()
 
         pos = np.mod(pos, 1)
         set_atom_positions(unit_cell, pos)
 
-        self.dft_obj.update()
+        self.ground_state_solver.update()
         # reset wave functions
-        self.dft_obj.initial_state()
+        self.ground_state_solver.initial_state()
 
         # update density and potential after dft_obj.update (if pw have changed)
         if C is not None:
             raise Exception('called with initial guess')
 
-        return self.dft_obj.find(
+        return self.ground_state_solver.find(
             potential_tol=self.potential_tol if tol is None else tol,
             energy_tol=self.energy_tol if tol is None else tol,
             initial_tol=1e-2,
@@ -252,7 +252,7 @@ def Bm(K, j):
 class DftWfExtrapolate(DftGroundState):
     """extrapolate wave functions."""
 
-    def __init__(self, solver, order=3, **kwargs):
+    def __init__(self, solver : solver_base, order=3, **kwargs):
         super().__init__(solver, **kwargs)
         self.Cs = [self.dft_obj.k_point_set().C]
         self.order = order
@@ -319,7 +319,7 @@ class NiklassonWfExtrapolate(DftGroundState):
     http://dx.doi.org/10.1103/PhysRevB.82.075110
     """
 
-    def __init__(self, solver, order, **kwargs):
+    def __init__(self, solver : solver_base, order, **kwargs):
         super().__init__(solver, **kwargs)
         self.Cps = [self.dft_obj.k_point_set().C]
         self.order = order
