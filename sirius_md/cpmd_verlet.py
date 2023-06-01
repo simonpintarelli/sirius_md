@@ -3,7 +3,7 @@ from .cpmd import CPMDForce
 
 
 
-def cpmd_velocity_verlet(x, v, ):
+def cpmd_velocity_verlet(x, v ):
     """TODO"""
     pass
 

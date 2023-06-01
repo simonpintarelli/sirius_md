@@ -14,7 +14,7 @@ class solver_base:
     def __init__(self, dft_obj):
         self.dft_obj = dft_obj
 
-     def density(self):
+    def density(self):
         """Return SIRIUS density obj."""
         return self.dft_obj.density()
 

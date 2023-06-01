@@ -9,7 +9,7 @@ setup(
     scripts=['bin/verlet', 'bin/cpmd'],
     entry_points={'console_scripts':
                   ['run_verlet = sirius_md.verlet:run',
-                   'run_cpmd_verlet = sirius_md.cpmd_verlet:run'
+                   'run_cpmd_verlet = sirius_md.cpmd_verlet:run',
                    'replay_verlet = sirius_md.verlet_replay:run']},
     classifiers=[
         "Programming Language :: Python :: 3",
