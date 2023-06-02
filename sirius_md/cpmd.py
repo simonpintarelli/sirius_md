@@ -3,7 +3,9 @@ from sirius import DFT_ground_state
 from sirius.coefficient_array import PwCoeffs, CoefficientArray
 import numpy as np
 from sirius.ot import Energy, ApplyHamiltonian
+import logging as log
 
+#def initialize_
 
 class CPMDForce:
     """Helper class to compute force and Hx for CPMD."""
@@ -15,7 +17,7 @@ class CPMDForce:
         # create object to compute the total energy
         self.E = Energy(sirius_dft_gs.k_point_set(), sirius_dft_gs.potential(), sirius_dft_gs.density(), self.H)
 
-    def __call___(self, C: PwCoeffs, fn: CoefficientArray, pos):
+    def __call__(self, C: PwCoeffs, fn: CoefficientArray, pos):
         kset = self.sirius_dft_gs.k_point_set()
 
         # set new ion positions
