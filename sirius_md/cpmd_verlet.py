@@ -11,7 +11,7 @@ log.basicConfig(format='%(levelname)s:%(message)s', level=log.INFO )
 
 
 
-def cpmd_velocity_verlet(x, v, C, u, F, Hx, Fh, dt, m, me , fn):
+def cpmd_velocity_verlet(x, v, C, u, F, Hx, Fh, dt, m, me , fn, kset):
     """TODO"""
     m = m[:, np.newaxis]  # enable broadcasting in numpy
 
@@ -22,7 +22,8 @@ def cpmd_velocity_verlet(x, v, C, u, F, Hx, Fh, dt, m, me , fn):
     magnitudes = np.linalg.norm(Cn[0,0], axis=0)
     Cn[0,0] = Cn[0,0]/magnitudes
     Cn = loewdin(Cn)
-
+    log.debug(f"magnitudes: {magnitudes}")
+    kset.C = Cn #update wfc 
     Fn, Eksn, Hxn = Fh(Cn, fn, xn)
 
     log.debug("Updating both velocities")
@@ -57,7 +58,7 @@ def run():
     log.info ("---------Starting main loop-----------")
     for i in range(N):
         log.info(f"iteration {i}")
-        xn, vn, Cn, un, Fn, Eksn = cpmd_velocity_verlet(x0, v0, kset.C, u0, F, Hx, Fh, dt, m, me, kset.fn)
+        xn, vn, Cn, un, Fn, Eksn = cpmd_velocity_verlet(x0, v0, kset.C, u0, F, Hx, Fh, dt, m, me, kset.fn, kset)
         log.info(f"KSEnergy = {Eksn}")
         vc = to_cart(vn, lattice_vectors)
         ekin = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
