@@ -11,9 +11,11 @@ log.basicConfig(format='%(levelname)s:%(message)s', level=log.INFO )
 
 
 
-def cpmd_velocity_verlet(x, v, C, u, F, Hx, Fh, dt, m, me , fn, kset):
+def cpmd_velocity_verlet(x, v, u, F, Hx, Fh, dt, m, me, kset):
     """TODO"""
     m = m[:, np.newaxis]  # enable broadcasting in numpy
+    C = kset.C
+    fn = kset.fn
 
     log.debug("Updating positions and eDoF")
     xn = x + v * dt + 0.5 * F / m * dt ** 2
@@ -58,7 +60,7 @@ def run():
     log.info ("---------Starting main loop-----------")
     for i in range(N):
         log.info(f"iteration {i}")
-        xn, vn, Cn, un, Fn, Eksn = cpmd_velocity_verlet(x0, v0, kset.C, u0, F, Hx, Fh, dt, m, me, kset.fn, kset)
+        xn, vn, Cn, un, Fn, Eksn = cpmd_velocity_verlet(x0, v0, u0, F, Hx, Fh, dt, m, me, kset)
         log.info(f"KSEnergy = {Eksn}")
         vc = to_cart(vn, lattice_vectors)
         ekin = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
