@@ -62,9 +62,10 @@ def run():
         log.info(f"KSEnergy = {Eksn}")
         vc = to_cart(vn, lattice_vectors)
         ekin = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
+        log.info(f"Total Energy:{Eksn+ekin}")
         x0 = xn
         v0 = vn
-        kset.C = Cn
+        u0 = un
         F = Fn
     log.info("Simulation ended successfully.")
     return 0 
