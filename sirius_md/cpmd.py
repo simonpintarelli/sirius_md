@@ -1,11 +1,33 @@
 from sirius import set_atom_positions
 from sirius import DFT_ground_state
-from sirius.coefficient_array import PwCoeffs, CoefficientArray
+from sirius.coefficient_array import PwCoeffs, CoefficientArray, identity_like
 import numpy as np
 from sirius.ot import Energy, ApplyHamiltonian
 import logging as log
 
-#def initialize_
+def shake(Cn, C):
+    """ Add the Lagrange multipliers to the current wave function coefficients (wfc). 
+    The notation follows Tuckerman & Parrinello (T&P)
+    "Implementing the Car-Parrinello equations I" Section IV.B.Velocity Verlet
+    """
+    A = Cn.H @ Cn
+    B = C.H @ Cn
+    I = identity_like(A)
+    X0 = 0.5 * (I - A)
+    for i in range(7): #TODO: Add the number of iteration in input file
+        Xn = 0.5*(I - A + X0 @ (I - B) + (I - B.H) @ X0 - (X0 @ X0))
+        X0 = Xn
+    XC = (Xn @ C.T).T # scaled matrix of lagrange multipliers times wfc.  
+    Cn = Cn + XC # eq. (4.3) in T&P
+    return Cn, XC
+
+def rattle(un, Cn, XC, dt):
+    un = un + XC/dt # eq. (4.9) in T&P. Note that XC = (dt^2/2 me)\sum_j\Lambda_{ij}C_j
+    D = Cn.H@un # in T&P, C is used instead of D
+    Y = -0.5*(D+D.H)
+    YC = (Y @ Cn.T).T
+    un = un + YC # eq. (4.11) in T&P
+    return un 
 
 class CPMDForce:
     """Helper class to compute force and Hx for CPMD."""
