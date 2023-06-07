@@ -67,10 +67,10 @@ def run():
         log.info(f"KSEnergy = {Eksn}")
         vc = to_cart(vn, lattice_vectors)
         ekin_x = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
-        log.debug(f"{un.H@un}")
-        ekin_c = 0.5 * np.sum(un.H@un * me)
-        log.info(f"KSEnergy + T_ions :{Eksn+ekin_x}")
-        log.info(f"Total Energy:{Eksn+ekin_x+np.real(ekin_c)}")
+        ekin_c = 0.5 * me * np.sum(np.real(np.diag((un.H@un)[0,0]))) #TODO: generalize
+        log.info(f"T_ions :{ekin_x}")
+        log.info(f"T_coeff:{ekin_c}")
+        log.info(f"Total:{Eksn + ekin_x + ekin_c}")
         x0 = xn
         v0 = vn
         u0 = un
