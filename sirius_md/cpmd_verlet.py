@@ -8,7 +8,7 @@ from sirius import atom_positions
 from sirius.coefficient_array import zeros_like
 from .atom_mass import atom_masses
 import time
-log.basicConfig(format='%(levelname)s:%(message)s', level=log.INFO)
+log.basicConfig(format='%(levelname)s:%(message)s', level=log.DEBUG)
 
 
 
@@ -18,23 +18,25 @@ def cpmd_velocity_verlet(x, v, u, F, Hx, Fh, dt, m, me, kset):
     C = kset.C
     fn = kset.fn
 
-    log.debug("Updating positions and eDoF")
     xn = x + v * dt + 0.5 * F / m * dt ** 2
     Cn = C + u * dt - 0.5 * Hx / me * dt ** 2 
-    # Orthonormalization
     Cn, XC = shake(Cn, C) # XC is used to update the electronic velocities
-    #magnitudes = np.linalg.norm(Cn[0,0], axis=0)
-    #Cn[0,0] = Cn[0,0]/magnitudes
-    #Cn = loewdin(Cn)
+    log.debug(f"plane wave norms: {np.linalg.norm(Cn[0,0], axis=0)}")
+
     kset.C = Cn #update wfc 
     Fn, Eksn, Hxn = Fh(Cn, fn, xn)
 
-    log.debug("Updating both velocities")
     vn =  v + 0.5 / m * (F + Fn) * dt 
     un =  u - 0.5 / me * (Hx + Hxn) * dt 
     un = rattle(un, Cn, XC, dt) 
 
     return xn, vn, Cn, un, Fn, Eksn  
+
+def boltzmann_velocities(m, kT):
+    num_atoms = len(m)
+    m = m[:, np.newaxis]
+    factors = np.sqrt(kT/m)
+    return np.random.normal(loc=0, scale = factors, size=(num_atoms, 3)) #Assuming 3D simulations
 
 
 
@@ -49,17 +51,19 @@ def run():
 
     log.info("Initializing Sirius DFT object")  
     kset, _, _, dft_ = initialize() #Ask Simon about res["density"/"potential"]
+
     log.info("Setting initial conditions")  
     unit_cell = kset.ctx().unit_cell()
     lattice_vectors = np.array(unit_cell.lattice_vectors())
     x0 = atom_positions(unit_cell)
-    v0 = np.zeros_like(x0)
-    u0 = zeros_like(kset.C) 
     na = len(x0)  # number of atoms
+    atom_types = [unit_cell.atom(i).label for i in range(na)] 
+    m = np.array([atom_masses[label] for label in atom_types])
+    v0 = boltzmann_velocities(m,0.001) #np.zeros_like(x0)
+    u0 = zeros_like(kset.C) 
+
     Fh = CPMDForce(dft_)
     F, Eks, Hx = Fh(kset.C, kset.fn, x0)
-    atom_types = [unit_cell.atom(i).label for i in range(na)]
-    m = np.array([atom_masses[label] for label in atom_types])
     log.info ("---------Starting main loop-----------")
     for i in range(N):
         log.info(f"iteration {i}")
@@ -71,6 +75,7 @@ def run():
         log.info(f"T_ions :{ekin_x}")
         log.info(f"T_coeff:{ekin_c}")
         log.info(f"Total:{Eksn + ekin_x + ekin_c}")
+        log.info(f"Positions:\n {xn}")
         x0 = xn
         v0 = vn
         u0 = un

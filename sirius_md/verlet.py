@@ -31,7 +31,7 @@ def initialize(tol=None, atom_positions=None):
             positions = [atom_positions.pop(0) for _ in range(n)]
             sirius_config['unit_cell']['atoms'][atom] = positions
 
-    res = DFT_ground_state_find(num_dft_iter=3, config=sirius_config)
+    res = DFT_ground_state_find(num_dft_iter=100, config=sirius_config)
 
     return res["kpointset"], res["density"], res["potential"], res["dft_gs"]
 

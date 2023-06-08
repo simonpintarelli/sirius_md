@@ -1,11 +1,12 @@
 from sirius import set_atom_positions
 from sirius import DFT_ground_state
-from sirius.coefficient_array import PwCoeffs, CoefficientArray, identity_like
+from sirius.coefficient_array import PwCoeffs, CoefficientArray, identity_like, l2norm
 import numpy as np
 from sirius.ot import Energy, ApplyHamiltonian
 import logging as log
+import copy as cp
 
-def shake(Cn, C):
+def shake(Cn, C, etol = 1e-6, max_iter = 100 ):
     """ Add the Lagrange multipliers to the current wave function coefficients (wfc). 
     The notation follows Tuckerman & Parrinello (T&P)
     "Implementing the Car-Parrinello equations I" Section IV.B.Velocity Verlet
@@ -14,12 +15,16 @@ def shake(Cn, C):
     B = C.H @ Cn
     I = identity_like(A)
     X0 = 0.5 * (I - A)
-    for i in range(7): #TODO: Add the number of iteration in input file
+    for i in range(max_iter): #TODO: Add the number of iteration in input file
+        log.debug(f"shake iteration {i}")
         Xn = 0.5*(I - A + X0 @ (I - B) + (I - B.H) @ X0 - (X0 @ X0))
-        X0 = Xn
-    XC = (Xn @ C.T).T # scaled matrix of lagrange multipliers times wfc.  
-    Cn = Cn + XC # eq. (4.3) in T&P
-    return Cn, XC
+        XC = C @ Xn
+        Cp = Cn + XC # eq. (4.3) in T&P
+        error = np.max(np.abs((Cp.H@Cp-I)[0,0])) #TODO: generalize
+        log.debug(f"error {error}")
+        if error < etol:
+            break
+    return Cp, XC
 
 def rattle(un, Cn, XC, dt):
     un = un + XC/dt # eq. (4.9) in T&P. Note that XC = (dt^2/2 me)\sum_j\Lambda_{ij}C_j
