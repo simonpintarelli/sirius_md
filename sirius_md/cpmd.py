@@ -14,14 +14,14 @@ def shake(Cn, C, etol = 1e-6, max_iter = 100 ):
     A = Cn.H @ Cn
     B = C.H @ Cn
     I = identity_like(A)
-    X0 = 0.5 * (I - A)
+    Xn = 0.5 * (I - A)
     for i in range(max_iter): #TODO: Add the number of iteration in input file
         log.debug(f"shake iteration {i}")
-        Xn = 0.5*(I - A + X0 @ (I - B) + (I - B.H) @ X0 - (X0 @ X0))
+        Xn = 0.5*(I - A + Xn @ (I - B) + (I - B.H) @ Xn - (Xn @ Xn))
         XC = C @ Xn
         Cp = Cn + XC # eq. (4.3) in T&P
         error = np.max(np.abs((Cp.H@Cp-I)[0,0])) #TODO: generalize
-        log.debug(f"error {error}")
+        log.debug(f"error shake {error}")
         if error < etol:
             break
     return Cp, XC
@@ -32,6 +32,8 @@ def rattle(un, Cn, XC, dt):
     Y = -0.5*(D+D.H)
     YC = (Y @ Cn.T).T
     un = un + YC # eq. (4.11) in T&P
+    error = np.max(np.abs((un.H @ Cn + Cn.H @ un)[0,0])) 
+    log.debug(f"error rattle {error}")
     return un 
 
 class CPMDForce:
