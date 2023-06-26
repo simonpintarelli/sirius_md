@@ -58,7 +58,7 @@ def run():
     x0 = atom_positions(unit_cell)
     na = len(x0)  # number of atoms
     atom_types = [unit_cell.atom(i).label for i in range(na)] 
-    m = np.array([atom_masses[label] for label in atom_types])
+    m = np.array([atom_masses[label] for label in atom_types])*1822.89
     v0 = boltzmann_velocities(m,0.001) #np.zeros_like(x0)
     u0 = zeros_like(kset.C) 
 
