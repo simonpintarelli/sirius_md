@@ -1,6 +1,6 @@
 parameters:
   # time step in fs
-  dt: 0.1
+  dt: 5
   # number of time steps
   N: 1000
   # electronic fictitious mass
