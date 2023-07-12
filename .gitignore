@@ -3,3 +3,6 @@
 /examples/diamond/verlet.out
 __pycache__/
 velocity_verlet.egg-info/
+/examples/diamond/cpmd.out
+*.h5
+*.sh

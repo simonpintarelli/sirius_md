@@ -6,7 +6,7 @@ from sirius.ot import Energy, ApplyHamiltonian
 import logging as log
 import copy as cp
 
-def shake(Cn, C, etol = 1e-6, max_iter = 100 ):
+def shake(Cn, C, etol = 5e-15, max_iter = 100 ):
     """ Add the Lagrange multipliers to the current wave function coefficients (wfc). 
     The notation follows Tuckerman & Parrinello (T&P)
     "Implementing the Car-Parrinello equations I" Section IV.B.Velocity Verlet
@@ -16,25 +16,42 @@ def shake(Cn, C, etol = 1e-6, max_iter = 100 ):
     I = identity_like(A)
     Xn = 0.5 * (I - A)
     for i in range(max_iter): #TODO: Add the number of iteration in input file
-        log.debug(f"shake iteration {i}")
         Xn = 0.5*(I - A + Xn @ (I - B) + (I - B.H) @ Xn - (Xn @ Xn))
-        XC = C @ Xn
+        XC = C @ Xn.H
         Cp = Cn + XC # eq. (4.3) in T&P
         error = np.max(np.abs((Cp.H@Cp-I)[0,0])) #TODO: generalize
-        log.debug(f"error shake {error}")
+        log.debug(f"error shake : {error}")
         if error < etol:
             break
     return Cp, XC
 
 def rattle(un, Cn, XC, dt):
-    un = un + XC/dt # eq. (4.9) in T&P. Note that XC = (dt^2/2 me)\sum_j\Lambda_{ij}C_j
+    #un = un + XC/dt # eq. (4.9) in T&P. Note that XC = (dt^2/2 me)\sum_j\Lambda_{ij}C_j
     D = Cn.H@un # in T&P, C is used instead of D
     Y = -0.5*(D+D.H)
-    YC = (Y @ Cn.T).T
+    YC =  Cn @ Y.H
     un = un + YC # eq. (4.11) in T&P
     error = np.max(np.abs((un.H @ Cn + Cn.H @ un)[0,0])) 
-    log.debug(f"error rattle {error}")
+    log.debug(f"error rattle : {error}")
     return un 
+
+
+def update_sirius(sirius_dft_gs: DFT_ground_state):
+    kset = sirius_dft_gs.k_point_set()
+    # update density and potential 
+    #use_sym = kset.ctx().use_symmetry()
+    #sirius_dft_gs.density().generate(
+    #    kset,
+    #    use_sym,
+    #    False,  # add core (only for lapw)
+     #   True,  # transform to real space grid
+    #)
+    #sirius_dft_gs.potential().generate(
+    #    sirius_dft_gs.density(), use_sym, True  # transform to real space grid
+        #)
+    H = ApplyHamiltonian(sirius_dft_gs.potential(), sirius_dft_gs.k_point_set())
+    E = Energy(sirius_dft_gs.k_point_set(), sirius_dft_gs.potential(), sirius_dft_gs.density(), H)
+    E.compute(kset.C, kset.fn)
 
 class CPMDForce:
     """Helper class to compute force and Hx for CPMD."""

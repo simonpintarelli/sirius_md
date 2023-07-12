@@ -13,12 +13,12 @@
         "num_fv_states": 16,
         "num_mag_dims" : 0,
         "gk_cutoff" : 7.0,
-        "pw_cutoff" : 21.00,
+        "pw_cutoff" : 14.00,
         "use_symmetry": false,
         "ngridk" : [1, 1, 1],
         "num_dft_iter": 100,
-        "potential_tol": 1e-7,
-        "energy_tol": 1e-7,
+        "potential_tol": 1e-14,
+        "energy_tol": 1e-14,
         "gamma_point": false
     },
     "iterative_solver" : {

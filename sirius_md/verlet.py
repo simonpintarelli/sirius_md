@@ -3,17 +3,56 @@ import yaml
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
-from sirius import (DFT_ground_state_find, atom_positions, set_atom_positions)
+from sirius import (DFT_ground_state_find, atom_positions, set_atom_positions, CoefficientArray, PwCoeffs)
 from sirius import Logger as pprinter
 
 from .atom_mass import atom_masses
 from .dft_ground_state import make_dft
 from .logger import Logger
 import time
+import h5py
+from h5py import File
+from mpi4py import MPI
 
 pprint = pprinter()
 
-def initialize(tol=None, atom_positions=None):
+def sirius_save_state(objs_dict, prefix):
+    """
+    Save SIRIUS CoefficientArrays to hdf5.
+
+    Arguments:
+    objs_dict -- dictionary(string: CoefficientArray), example: {'Z': Z, 'G': G}
+    kset      -- SIRIUS kpointset
+    prefix    --
+    """
+    rank = MPI.COMM_WORLD.rank
+
+    with h5py.File(prefix + "%d.h5" % rank, "w") as fh5:
+        for key in objs_dict:
+            # assume it is a string
+            name = key
+            sirius_save_h5(fh5, name, objs_dict[key])
+
+def sirius_save_h5(fh5, label, obj):
+    """
+    Arguments:
+    fh5  -- h5py.File
+    label -- name for the object
+    obj  -- np.array like / CoefficientArray
+    """
+
+    if isinstance(obj, CoefficientArray):
+        grp = fh5.create_group(label)
+        for key, val in obj.items():
+            dset = grp.create_dataset(
+                name=",".join(map(str, key)), shape=val.shape, dtype=val.dtype, data=val
+            )
+            dset.attrs["key"] = key
+    else:
+        grp = fh5.create_dataset(name=label, data=obj)
+    return grp
+
+def initialize(tol=None, atom_positions=None, num_dft_iter = 100):
     """Initialize DFT_ground_state object."""
     sirius_config = json.load(open('sirius.json', 'r'))
 
@@ -25,13 +64,14 @@ def initialize(tol=None, atom_positions=None):
         sirius_config['parameters']['energy_tol'] = 1e-10
 
     if atom_positions:
-        sirius_config['unit_cell']['atom_coordinate_units'] = 'Angstrom'
+        sirius_config['unit_cell']['atom_coordinate_units'] = 'au'
         for atom in sirius_config['unit_cell']['atoms']:
             n = len(sirius_config['unit_cell']['atoms'][atom])
             positions = [atom_positions.pop(0) for _ in range(n)]
             sirius_config['unit_cell']['atoms'][atom] = positions
 
-    res = DFT_ground_state_find(num_dft_iter=100, config=sirius_config)
+    print(f"Number of iteration: {num_dft_iter}")
+    res = DFT_ground_state_find(num_dft_iter, config=sirius_config)
 
     return res["kpointset"], res["density"], res["potential"], res["dft_gs"]
 
@@ -148,7 +188,7 @@ def run():
         initial_positions = restart_data[-1]['x']
         initial_velocities = restart_data[-1]['v']
 
-    kset, _, _, dft_ = initialize(input_vars['parameters']['energy_tol'], initial_positions)
+    kset, _, _, dft_ = initialize(tol = input_vars['parameters']['energy_tol'], atom_positions=initial_positions)
 
     dft = make_dft(dft_, input_vars)
 
@@ -168,7 +208,7 @@ def run():
     na = len(x0)  # number of atoms
     atom_types = [unit_cell.atom(i).label for i in range(na)]
     # masses in A_r
-    m = np.array([atom_masses[label] for label in atom_types])
+    m = np.array([atom_masses[label] for label in atom_types]) * 1822.89
 
     with Logger():
         # Velocity Verlet time-stepping
@@ -189,6 +229,17 @@ def run():
             x0 = xn
             v0 = vn
             F = Fn
+            if i==N-2:
+                sirius_save_state({"C": kset.C, "fn": kset.fn}, prefix="second")
+
+    sirius_save_state({"C": kset.C, "fn": kset.fn}, prefix="init")
+    print(f"coefficients\n {(dft.dft_obj.k_point_set().C)[0,0]}")
+    print(f"ionic positions\n {xn}")
+    print(f"velocities: \n {vn}")
+    vc = to_cart(vn, lattice_vectors)
+    print(f"velocities cartesian: \n {vc}")
+    ekin = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
+    print(f"last kinetic energy: \n {ekin}")
 
 
 if __name__ == '__main__':
