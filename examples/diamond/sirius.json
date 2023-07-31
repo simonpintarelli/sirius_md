@@ -17,7 +17,7 @@
         "use_symmetry": false,
         "ngridk" : [1, 1, 1],
         "num_dft_iter": 100,
-        "potential_tol": 1e-14,
+        "density_tol": 1e-14,
         "energy_tol": 1e-14,
         "gamma_point": false
     },
