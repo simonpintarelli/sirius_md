@@ -1,8 +1,8 @@
-from sirius_md.verlet import initialize, to_cart, from_cart
+from sirius_md.verlet import initialize, to_cart, from_cart, Force
 import argparse
 import json
 from sirius_md.dft_ground_state import loewdin 
-from .cpmd import (CPMDForce, shake, rattle, update_sirius)
+from .cpmd import (CPMDForce, shake, rattle, update_sirius, shake_gamma)
 import logging as log
 import yaml
 import numpy as np
@@ -40,15 +40,19 @@ def cpmd_velocity_verlet(x, v, u, F, Hx, Fh, dt, m, me, kset):
     fn = kset.fn
 
     xn = x + v * dt + 0.5 * F / m * dt ** 2
-    Cn = C + u * dt - 0.5 * Hx / me * dt ** 2 
+    log.debug(f"{Hx}")
+    Cn = C + u * dt - 0.5 * kset.fn * Hx / me * dt ** 2 
     Cn, XC = shake(Cn, C) # XC is used to update the electronic velocities
     log.debug(f"plane wave norms: {np.linalg.norm(Cn[0,0], axis=0)}")
+    log.debug(f"occupation numbers: {fn}")
 
     kset.C = Cn #update wfc 
     Fn, Eksn, Hxn = Fh(Cn, fn, xn)
+    gs_json = Fh.sirius_dft_gs.serialize()
+    log.debug(f"energy components: \n {gs_json['energy']}")
 
     vn =  v + 0.5 / m * (F + Fn) * dt 
-    un =  u - 0.5 / me * (Hx + Hxn) * dt 
+    un =  u - 0.5 / me * kset.fn * (Hx + Hxn) * dt 
     un = rattle(un, Cn, XC, dt) 
 
     return xn, vn, Cn, un, Fn, Eksn  
@@ -101,10 +105,11 @@ def run():
         kset.C = C_init 
     else:
         log.info("Initializing Sirius DFT object")  
-        kset, _, _, dft_ = initialize(tol=1e-30,num_dft_iter=1) #Ask Simon about res["density"/"potential"]
+        kset, _, _, dft_ = initialize(num_dft_iter=100) #Ask Simon about res["density"/"potential"]
 
     unit_cell = kset.ctx().unit_cell()
     lattice_vectors = np.array(unit_cell.lattice_vectors())
+    log.debug(f"lattice vectors: {lattice_vectors}")
 
     log.info("Setting initial conditions")  
     if args.restart:
@@ -126,12 +131,12 @@ def run():
         na = len(x0)  # number of atoms
         atom_types = [unit_cell.atom(i).label for i in range(na)] 
         m = np.array([atom_masses[label] for label in atom_types])*1822.89
-        v0 = boltzmann_velocities(m,T) #np.zeros_like(x0) 
+        v0 = from_cart(boltzmann_velocities(m,T), lattice_vectors) #np.zeros_like(x0) 
         u0 = zeros_like(kset.C) 
 
     log.debug(f"Initial x \n {x0}")
     log.debug(f"Initial v \n {v0}")
-    log.debug(f"Initial C \n {kset.C[0,0]}")
+    log.debug(f"Initial C \n {kset.C[0,0].shape} \n{kset.C[0,0]}")
     log.debug(f"Initial u \n {u0[0,0]}")
 
     vc = to_cart(v0, lattice_vectors)
@@ -148,7 +153,7 @@ def run():
         log.info(f"KSEnergy : {Eksn}")
         vc = to_cart(vn, lattice_vectors)
         ekin_x = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
-        ekin_c = 0.5 * me * np.sum(np.real(np.diag((un.H@un)[0,0]))) #TODO: generalize
+        ekin_c =  me * np.sum(np.real(np.diag((un.H@un)[0,0]))) #TODO: generalize
         log.info(f"T_ions : {ekin_x}")
         log.info(f"T_coeff: {ekin_c}")
         log.info(f"Total: {Eksn + ekin_x + ekin_c}")
