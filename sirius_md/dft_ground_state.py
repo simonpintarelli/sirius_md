@@ -199,14 +199,14 @@ class DftObliviousGroundState:
     """plain SCF. Always restart from scratch, no extrapolation. """
 
     def __init__(self, solver : solver_base, **kwargs):
-        self.ground_state_solver = solver
+        self.dft_obj = solver
         self.density_tol = kwargs["density_tol"]
         self.energy_tol = kwargs["energy_tol"]
         self.maxiter = kwargs["maxiter"]
 
     def _generate_density_potential(self, kset):
-        density = self.ground_state_solver.density()
-        potential = self.ground_state_solver.potential()
+        density = self.dft_obj.density()
+        potential = self.dft_obj.potential()
 
         density.generate(kset)
         density.fft_transform(1)
@@ -220,22 +220,22 @@ class DftObliviousGroundState:
         Arguments:
         pos -- atom positions in reduced coordinates
         """
-        kset = self.ground_state_solver.k_point_set()
+        kset = self.dft_obj.k_point_set()
 
         unit_cell = kset.ctx().unit_cell()
 
         pos = np.mod(pos, 1)
         set_atom_positions(unit_cell, pos)
 
-        self.ground_state_solver.update()
+        self.dft_obj.update()
         # reset wave functions
-        self.ground_state_solver.initial_state()
+        self.dft_obj.initial_state()
 
         # update density and potential after dft_obj.update (if pw have changed)
         if C is not None:
             raise Exception('called with initial guess')
 
-        return self.ground_state_solver.find(
+        return self.dft_obj.find(
             density_tol=self.density_tol if tol is None else tol,
             energy_tol=self.energy_tol if tol is None else tol,
             initial_tol=1e-2,
