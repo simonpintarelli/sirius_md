@@ -144,7 +144,7 @@ class DftGroundState:
 
     def __init__(self, solver, **kwargs):
         self.dft_obj = solver
-        self.potential_tol = kwargs["potential_tol"]
+        self.density_tol = kwargs["density_tol"]
         self.energy_tol = kwargs["energy_tol"]
         self.maxiter = kwargs["maxiter"]
 
@@ -187,7 +187,7 @@ class DftGroundState:
         pprint('DEBUG:: fn',  kset.fn)
 
         return self.dft_obj.find(
-            potential_tol=self.potential_tol if tol is None else tol,
+            density_tol=self.density_tol if tol is None else tol,
             energy_tol=self.energy_tol if tol is None else tol,
             initial_tol=1e-2,
             num_dft_iter=self.maxiter,
@@ -196,11 +196,11 @@ class DftGroundState:
 
 
 class DftObliviousGroundState:
-    """plain SCF. Forget about previous solution, no extrapolation. """
+    """plain SCF. Always restart from scratch, no extrapolation. """
 
     def __init__(self, solver : solver_base, **kwargs):
         self.ground_state_solver = solver
-        self.potential_tol = kwargs["potential_tol"]
+        self.density_tol = kwargs["density_tol"]
         self.energy_tol = kwargs["energy_tol"]
         self.maxiter = kwargs["maxiter"]
 
@@ -236,7 +236,7 @@ class DftObliviousGroundState:
             raise Exception('called with initial guess')
 
         return self.ground_state_solver.find(
-            potential_tol=self.potential_tol if tol is None else tol,
+            density_tol=self.density_tol if tol is None else tol,
             energy_tol=self.energy_tol if tol is None else tol,
             initial_tol=1e-2,
             num_dft_iter=self.maxiter,
@@ -386,7 +386,7 @@ def make_dft(solver, parameters):
     """
 
     maxiter = parameters["parameters"]["maxiter"]
-    potential_tol = parameters["parameters"]["potential_tol"]
+    density_tol = parameters["parameters"]["density_tol"]
     energy_tol = parameters["parameters"]["energy_tol"]
 
     # replace solver if OTMethod or MVP2 is used
@@ -395,12 +395,17 @@ def make_dft(solver, parameters):
             solver = OTMethod(solver)
         if parameters["parameters"]["solver"] == "mvp2":
             solver = MVP2Method(solver)
+        if parameters["parameters"]["solver"] == "scf":
+            # solver is already set
+            pass
+        else:
+            raise Exception("invalid solver")
 
     if parameters["parameters"]["method"]["type"] == "plain":
         return DftGroundState(
             solver,
             energy_tol=energy_tol,
-            potential_tol=potential_tol,
+            density_tol=density_tol,
             maxiter=maxiter,
         )
     if parameters["parameters"]["method"]["type"] == "kolafa":
@@ -409,7 +414,7 @@ def make_dft(solver, parameters):
             solver,
             order=order,
             energy_tol=energy_tol,
-            potential_tol=potential_tol,
+            density_tol=density_tol,
             maxiter=maxiter,
         )
     if parameters["parameters"]["method"]["type"] == "niklasson_wf":
@@ -418,7 +423,7 @@ def make_dft(solver, parameters):
             solver,
             order=order,
             energy_tol=energy_tol,
-            potential_tol=potential_tol,
+            density_tol=density_tol,
             maxiter=maxiter,
         )
 
@@ -427,7 +432,7 @@ def make_dft(solver, parameters):
         return DftObliviousGroundState(
             solver,
             energy_tol=energy_tol,
-            potential_tol=potential_tol,
+            density_tol=density_tol,
             maxiter=maxiter,
         )
 

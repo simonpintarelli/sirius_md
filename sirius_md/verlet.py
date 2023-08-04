@@ -57,10 +57,10 @@ def initialize(tol=None, atom_positions=None, num_dft_iter = 100):
     sirius_config = json.load(open('sirius.json', 'r'))
 
     if tol is not None:
-        sirius_config['parameters']['potential_tol'] = tol
+        sirius_config['parameters']['density_tol'] = tol
         sirius_config['parameters']['energy_tol'] = tol
     else:
-        sirius_config['parameters']['potential_tol'] = 1e-10
+        sirius_config['parameters']['density_tol'] = 1e-10
         sirius_config['parameters']['energy_tol'] = 1e-10
 
     if atom_positions:

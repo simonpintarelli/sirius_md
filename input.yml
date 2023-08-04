@@ -11,7 +11,7 @@ parameters:
   solver: ot
   # maximal number of scf iterations
   maxiter: 30
-  potential_tol: 1.0e-6
+  density_tol: 1.0e-6
   energy_tol: 1.0e-6
   # time step in fs
   dt: 1
