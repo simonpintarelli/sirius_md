@@ -1,7 +1,7 @@
 from sirius_md.verlet import initialize, to_cart, from_cart, Force
 import argparse
 import json
-from sirius_md.dft_ground_state import loewdin 
+from sirius_md.dft_ground_state import loewdin
 from .cpmd import (CPMDForce, shake, rattle, update_sirius, shake_gamma)
 import logging as log
 import yaml
@@ -41,21 +41,21 @@ def cpmd_velocity_verlet(x, v, u, F, Hx, Fh, dt, m, me, kset):
 
     xn = x + v * dt + 0.5 * F / m * dt ** 2
     log.debug(f"{Hx}")
-    Cn = C + u * dt - 0.5 * kset.fn * Hx / me * dt ** 2 
+    Cn = C + u * dt - 0.5 * kset.fn * Hx / me * dt ** 2
     Cn, XC = shake(Cn, C) # XC is used to update the electronic velocities
     log.debug(f"plane wave norms: {np.linalg.norm(Cn[0,0], axis=0)}")
     log.debug(f"occupation numbers: {fn}")
 
-    kset.C = Cn #update wfc 
+    kset.C = Cn #update wfc
     Fn, Eksn, Hxn = Fh(Cn, fn, xn)
     gs_json = Fh.sirius_dft_gs.serialize()
     log.debug(f"energy components: \n {gs_json['energy']}")
 
-    vn =  v + 0.5 / m * (F + Fn) * dt 
-    un =  u - 0.5 / me * kset.fn * (Hx + Hxn) * dt 
-    un = rattle(un, Cn, XC, dt) 
+    vn =  v + 0.5 / m * (F + Fn) * dt
+    un =  u - 0.5 / me * kset.fn * (Hx + Hxn) * dt
+    un = rattle(un, Cn, XC, dt)
 
-    return xn, vn, Cn, un, Fn, Eksn  
+    return xn, vn, Cn, un, Fn, Eksn
 
 def boltzmann_velocities(m, T):
     num_atoms = len(m)
@@ -73,16 +73,16 @@ def run():
     parser.add_argument('--restart', nargs='?', type=argparse.FileType('r'))
     args = parser.parse_args()
 
-    log.info("Starting CPMD simulation")  
+    log.info("Starting CPMD simulation")
     t1 = time.time()
     input_vars = yaml.safe_load(open('input_cpmd.yml', 'r'))
     me = input_vars['parameters']['me'] #Electronic fictitious mass
-    dt = input_vars['parameters']['dt'] 
-    N = input_vars['parameters']['N'] 
+    dt = input_vars['parameters']['dt']
+    N = input_vars['parameters']['N']
     T = input_vars['parameters']['T']
-    initial_positions = None 
-    initial_velocities = None 
-    initial_coeff = None 
+    initial_positions = None
+    initial_velocities = None
+    initial_coeff = None
 
 
     if args.restart:
@@ -102,24 +102,24 @@ def run():
         error_ortho = np.max(np.abs((C_init.H@C_init-I)[0,0]))
         log.debug(f"error_ortho after shake: {error_ortho}")
         log.debug(f"{C_init[0,0].shape}")
-        kset.C = C_init 
+        kset.C = C_init
     else:
-        log.info("Initializing Sirius DFT object")  
+        log.info("Initializing Sirius DFT object")
         kset, _, _, dft_ = initialize(num_dft_iter=100) #Ask Simon about res["density"/"potential"]
 
     unit_cell = kset.ctx().unit_cell()
     lattice_vectors = np.array(unit_cell.lattice_vectors())
     log.debug(f"lattice vectors: {lattice_vectors}")
 
-    log.info("Setting initial conditions")  
+    log.info("Setting initial conditions")
     if args.restart:
-        x0 = atom_positions(unit_cell) 
+        x0 = atom_positions(unit_cell)
         update_sirius(dft_)
         v0 = from_cart(initial_velocities, lattice_vectors)
         na = len(x0)  # TODO: Avoid code repetition by setting na from input file
-        atom_types = [unit_cell.atom(i).label for i in range(na)] 
+        atom_types = [unit_cell.atom(i).label for i in range(na)]
         m = np.array([atom_masses[label] for label in atom_types])*1822.89
-        u0 = zeros_like(kset.C) 
+        u0 = zeros_like(kset.C)
         u0 = (C_from_disk-Cprev_from_disk)/dt
         error_vels = np.max(np.abs((u0.H @ kset.C + kset.C.H @ u0)[0,0]))
         log.debug(f"Pre-rattle velocities error: {error_vels}")
@@ -129,10 +129,10 @@ def run():
     else:
         x0 = atom_positions(unit_cell)
         na = len(x0)  # number of atoms
-        atom_types = [unit_cell.atom(i).label for i in range(na)] 
+        atom_types = [unit_cell.atom(i).label for i in range(na)]
         m = np.array([atom_masses[label] for label in atom_types])*1822.89
-        v0 = from_cart(boltzmann_velocities(m,T), lattice_vectors) #np.zeros_like(x0) 
-        u0 = zeros_like(kset.C) 
+        v0 = from_cart(boltzmann_velocities(m,T), lattice_vectors) #np.zeros_like(x0)
+        u0 = zeros_like(kset.C)
 
     log.debug(f"Initial x \n {x0}")
     log.debug(f"Initial v \n {v0}")
@@ -164,4 +164,4 @@ def run():
         F = Fn
     t2 = time.time()
     log.info(f"Simulation ended successfully. Total time: {t2-t1}")
-    return 0 
+    return 0
