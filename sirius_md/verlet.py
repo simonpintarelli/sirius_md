@@ -73,6 +73,9 @@ def initialize(tol=None, atom_positions=None, num_dft_iter = 100):
     print(f"Number of iteration: {num_dft_iter}")
     res = DFT_ground_state_find(num_dft_iter, config=sirius_config)
 
+    if not res['converged']:
+        raise ScfConvergenceError
+
     return res["kpointset"], res["density"], res["potential"], res["dft_gs"]
 
 
