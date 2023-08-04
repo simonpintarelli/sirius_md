@@ -7,7 +7,7 @@ import logging as log
 import copy as cp
 
 def shake(Cn, C, etol = 5e-15, max_iter = 100 ):
-    """ Add the Lagrange multipliers to the current wave function coefficients (wfc). 
+    """ Add the Lagrange multipliers to the current wave function coefficients (wfc).
     The notation follows Tuckerman & Parrinello (T&P)
     "Implementing the Car-Parrinello equations I" Section IV.B.Velocity Verlet
     """
@@ -30,13 +30,13 @@ def shake_gamma(Cn, C, etol = 5e-15, max_iter = 100 ):
     log.debug(f"{(Cn.H.conjugate())[0,0][:, 0][:, np.newaxis]}")
     log.debug(f"{(Cn.conjugate())[0,0][0, :][np.newaxis, :] }")
     log.debug(f"{((Cn.H.conjugate())[0,0][:, 0][:, np.newaxis]*(Cn.conjugate())[0,0][0, :][np.newaxis, :]).shape }")
-    A = 2* (Cn.H @ Cn).real 
+    A = 2* (Cn.H @ Cn).real
     Arest = identity_like(A)
     Arest[0,0] = (Cn.H.conjugate())[0,0][:, 0][:, np.newaxis]*(Cn.conjugate())[0,0][0, :][np.newaxis, :]
     A-= Arest
     Brest = identity_like(A)
-    Brest[0,0] = (C.H.conjugate())[0,0][:, 0][:, np.newaxis]*(Cn.conjugate())[0,0][0, :][np.newaxis, :] 
-    B = 2* (C.H @ Cn).real - Brest 
+    Brest[0,0] = (C.H.conjugate())[0,0][:, 0][:, np.newaxis]*(Cn.conjugate())[0,0][0, :][np.newaxis, :]
+    B = 2* (C.H @ Cn).real - Brest
     I = identity_like(A)
     Xn = 0.5 * (I - A)
     for i in range(max_iter): #TODO: Add the number of iteration in input file
@@ -50,7 +50,7 @@ def shake_gamma(Cn, C, etol = 5e-15, max_iter = 100 ):
             log.debug("Shake finished!")
             break
     return Cp, XC
-    
+
 
 def rattle(un, Cn, XC, dt):
     un = un + XC/dt # eq. (4.9) in T&P. Note that XC = (dt^2/2 me)\sum_j\Lambda_{ij}C_j
@@ -58,9 +58,9 @@ def rattle(un, Cn, XC, dt):
     Y = -0.5*(D+D.H)
     YC =  Cn @ Y.H
     un = un + YC # eq. (4.11) in T&P
-    error = np.max(np.abs((un.H @ Cn + Cn.H @ un)[0,0])) 
+    error = np.max(np.abs((un.H @ Cn + Cn.H @ un)[0,0]))
     log.debug(f"error rattle : {error}")
-    return un 
+    return un
 
 
 def update_sirius(sirius_dft_gs: DFT_ground_state):
@@ -74,7 +74,7 @@ class CPMDForce:
 
     def __init__(self, sirius_dft_gs: DFT_ground_state):
         self.sirius_dft_gs = sirius_dft_gs
-        self.unit_cell = self.sirius_dft_gs.k_point_set().ctx().unit_cell() 
+        self.unit_cell = self.sirius_dft_gs.k_point_set().ctx().unit_cell()
         self.L = self.unit_cell.lattice_vectors()
         self.Lh = np.linalg.inv(self.L)
 
