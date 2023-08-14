@@ -52,7 +52,7 @@ def sirius_save_h5(fh5, label, obj):
         grp = fh5.create_dataset(name=label, data=obj)
     return grp
 
-def initialize(tol=None, atom_positions=None, num_dft_iter = 100):
+def initialize(tol=None, atom_positions=None, num_dft_iter = 10000):
     """Initialize DFT_ground_state object."""
     sirius_config = json.load(open('sirius.json', 'r'))
 
@@ -60,8 +60,8 @@ def initialize(tol=None, atom_positions=None, num_dft_iter = 100):
         sirius_config['parameters']['density_tol'] = tol
         sirius_config['parameters']['energy_tol'] = tol
     else:
-        sirius_config['parameters']['density_tol'] = 1e-10
-        sirius_config['parameters']['energy_tol'] = 1e-10
+        sirius_config['parameters']['density_tol'] = 1e-14
+        sirius_config['parameters']['energy_tol'] = 1e-14
 
     if atom_positions:
         sirius_config['unit_cell']['atom_coordinate_units'] = 'au'

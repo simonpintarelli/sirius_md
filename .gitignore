@@ -1,4 +1,4 @@
-/examples/diamond/results/
+results/
 /examples/diamond/md_results.json
 /examples/diamond/verlet.out
 __pycache__/
@@ -6,3 +6,5 @@ velocity_verlet.egg-info/
 /examples/diamond/cpmd.out
 *.h5
 *.sh
+si_diamond/
+.gitignore

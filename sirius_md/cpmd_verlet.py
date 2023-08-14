@@ -2,7 +2,7 @@ from sirius_md.verlet import initialize, to_cart, from_cart, Force
 import argparse
 import json
 from sirius_md.dft_ground_state import loewdin
-from .cpmd import (CPMDForce, shake, rattle, update_sirius, shake_gamma)
+from .cpmd import (CPMDForce, shake, rattle, update_sirius, g_shake,g_dot, g_rattle)
 import logging as log
 import yaml
 import numpy as np
@@ -33,17 +33,17 @@ def sirius_load_state(prefix, name, dst):
             dst[(kp_index, spin_index)] = dst.ctype(fh5[name][key])
     return dst
 
-def cpmd_velocity_verlet(x, v, u, F, Hx, Fh, dt, m, me, kset):
+def cpmd_velocity_verlet(x, v, u, F, Hx, Fh, dt, m, me, kset, solvers):
     """TODO"""
     m = m[:, np.newaxis]  # enable broadcasting in numpy
     C = kset.C
     fn = kset.fn
 
     xn = x + v * dt + 0.5 * F / m * dt ** 2
-    log.debug(f"{Hx}")
     Cn = C + u * dt - 0.5 * kset.fn * Hx / me * dt ** 2
-    Cn, XC = shake(Cn, C) # XC is used to update the electronic velocities
-    log.debug(f"plane wave norms: {np.linalg.norm(Cn[0,0], axis=0)}")
+    Cn, XC = solvers["shake"](Cn, C) # XC is used to update the electronic velocities
+    #log.debug(f"plane wave norms: {np.linalg.norm(Cn[0,0], axis=0)}")
+    #log.debug(f"plane wave norms in gamme point: {np.diag(g_dot(Cn,Cn)[0,0])}")
     log.debug(f"occupation numbers: {fn}")
 
     kset.C = Cn #update wfc
@@ -53,7 +53,7 @@ def cpmd_velocity_verlet(x, v, u, F, Hx, Fh, dt, m, me, kset):
 
     vn =  v + 0.5 / m * (F + Fn) * dt
     un =  u - 0.5 / me * kset.fn * (Hx + Hxn) * dt
-    un = rattle(un, Cn, XC, dt)
+    un = solvers["rattle"](un, Cn, XC, dt)
 
     return xn, vn, Cn, un, Fn, Eksn
 
@@ -105,7 +105,7 @@ def run():
         kset.C = C_init
     else:
         log.info("Initializing Sirius DFT object")
-        kset, _, _, dft_ = initialize(num_dft_iter=100) #Ask Simon about res["density"/"potential"]
+        kset, _, _, dft_ = initialize(num_dft_iter=10000) #Ask Simon about res["density"/"potential"]
 
     unit_cell = kset.ctx().unit_cell()
     lattice_vectors = np.array(unit_cell.lattice_vectors())
@@ -143,13 +143,20 @@ def run():
     log.debug(f"v cartesian \n {vc}")
     ekin = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
     log.debug(f"Initial ion kinetic energy \n {ekin}")
+    sirius_config = json.load(open('sirius.json', 'r'))
+    if sirius_config['parameters']['gamma_point']:
+        log.info("Using gamma approximation")
+        solvers = {"shake": g_shake,"rattle": g_rattle}
+    else:
+        log.info("NOT using gamma approximation")
+        solvers = {"shake": shake,"rattle": rattle}
     Fh = CPMDForce(dft_)
     F, Eks, Hx = Fh(kset.C, kset.fn, x0)
     log.debug(f"initial KS energy: {Eks}")
     log.info ("---------Starting main loop-----------")
     for i in range(N):
-        log.info(f"iteration {i}")
-        xn, vn, Cn, un, Fn, Eksn = cpmd_velocity_verlet(x0, v0, u0, F, Hx, Fh, dt, m, me, kset)
+        log.info(f" iteration {i}")
+        xn, vn, Cn, un, Fn, Eksn = cpmd_velocity_verlet(x0, v0, u0, F, Hx, Fh, dt, m, me, kset, solvers)
         log.info(f"KSEnergy : {Eksn}")
         vc = to_cart(vn, lattice_vectors)
         ekin_x = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
@@ -157,7 +164,7 @@ def run():
         log.info(f"T_ions : {ekin_x}")
         log.info(f"T_coeff: {ekin_c}")
         log.info(f"Total: {Eksn + ekin_x + ekin_c}")
-        log.info(f"Positions:\n {xn}")
+        log.info(f"Positions:\n {xn} \n")
         x0 = xn
         v0 = vn
         u0 = un
