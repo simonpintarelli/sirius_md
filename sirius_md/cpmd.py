@@ -112,24 +112,10 @@ class CPMDForce:
         set_atom_positions(unit_cell, pos)
         self.sirius_dft_gs.update()
 
-        # update density and potential
-        use_sym = kset.ctx().use_symmetry()
-        self.sirius_dft_gs.density().generate(
-            kset,
-            use_sym,
-            False,  # add core (only for lapw)
-            True,  # transform to real space grid
-        )
-        self.sirius_dft_gs.potential().generate(
-            self.sirius_dft_gs.density(), use_sym, True  # transform to real space grid
-        )
-
         # Kohn-Sham energy and H*Psi
         Eks, Hx = self.E.compute(C, fn)
 
-
         # Forces acting on nuclei
         F = np.array(self.sirius_dft_gs.forces().calc_forces_total(add_scf_corr=False)).T
-
 
         return F@self.Lh.T, Eks, Hx
