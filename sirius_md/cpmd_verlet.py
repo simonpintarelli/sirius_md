@@ -56,7 +56,7 @@ def cpmd_velocity_verlet(x, v, u, F, Hx, Fh, dt, m, me, kset, solvers):
     un =  u - 0.5 / me * kset.fn * (Hx + Hxn) * dt
     un = solvers["rattle"](un, Cn, XC, dt)
 
-    return xn, vn, Cn, un, Fn, Eksn
+    return xn, vn, Cn, un, Fn, Hxn, Eksn
 
 def boltzmann_velocities(m, T):
     num_atoms = len(m)
@@ -157,7 +157,7 @@ def run():
     log.info ("---------Starting main loop-----------")
     for i in range(N):
         log.info(f" iteration {i}")
-        xn, vn, Cn, un, Fn, Eksn = cpmd_velocity_verlet(x0, v0, u0, F, Hx, Fh, dt, m, me, kset, solvers)
+        xn, vn, Cn, un, Fn, Hxn, Eksn = cpmd_velocity_verlet(x0, v0, u0, F, Hx, Fh, dt, m, me, kset, solvers)
         log.info(f"KSEnergy : {Eksn}")
         vc = to_cart(vn, lattice_vectors)
         ekin_x = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
@@ -170,6 +170,7 @@ def run():
         v0 = vn
         u0 = un
         F = Fn
+        Hx = Hxn
     t2 = time.time()
     log.info(f"Simulation ended successfully. Total time: {t2-t1}")
     return 0
