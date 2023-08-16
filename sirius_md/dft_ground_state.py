@@ -393,13 +393,14 @@ def make_dft(solver, parameters):
     if "solver" in parameters["parameters"]:
         if parameters["parameters"]["solver"] == "ot":
             solver = OTMethod(solver)
-        if parameters["parameters"]["solver"] == "mvp2":
+        elif parameters["parameters"]["solver"] == "mvp2":
             solver = MVP2Method(solver)
-        if parameters["parameters"]["solver"] == "scf":
+        elif parameters["parameters"]["solver"] == "scf":
             # solver is already set
             pass
         else:
             raise Exception("invalid solver")
+
 
     if parameters["parameters"]["method"]["type"] == "plain":
         return DftGroundState(
