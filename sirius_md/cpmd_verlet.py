@@ -9,6 +9,7 @@ import numpy as np
 from sirius import atom_positions
 from sirius.coefficient_array import zeros_like, identity_like
 from .atom_mass import atom_masses
+from .constants import dalton_to_me
 import time
 import h5py
 from h5py import File
@@ -118,7 +119,7 @@ def run():
         v0 = from_cart(initial_velocities, lattice_vectors)
         na = len(x0)  # TODO: Avoid code repetition by setting na from input file
         atom_types = [unit_cell.atom(i).label for i in range(na)]
-        m = np.array([atom_masses[label] for label in atom_types])*1822.89
+        m = np.array([atom_masses[label] for label in atom_types], dtype=np.float64) * dalton_to_me
         u0 = zeros_like(kset.C)
         u0 = (C_from_disk-Cprev_from_disk)/dt
         error_vels = np.max(np.abs((u0.H @ kset.C + kset.C.H @ u0)[0,0]))
@@ -130,7 +131,7 @@ def run():
         x0 = atom_positions(unit_cell)
         na = len(x0)  # number of atoms
         atom_types = [unit_cell.atom(i).label for i in range(na)]
-        m = np.array([atom_masses[label] for label in atom_types])*1822.89
+        m = np.array([atom_masses[label] for label in atom_types], dtype=np.float64) * dalton_to_me
         v0 = from_cart(boltzmann_velocities(m,T), lattice_vectors) #np.zeros_like(x0)
         u0 = zeros_like(kset.C)
 

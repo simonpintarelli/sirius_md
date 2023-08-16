@@ -5,7 +5,7 @@ import numpy as np
 import argparse
 from sirius import (DFT_ground_state_find, atom_positions, set_atom_positions, CoefficientArray, PwCoeffs)
 from sirius import Logger as pprinter
-
+from .constants import dalton_to_me
 from .atom_mass import atom_masses
 from .dft_ground_state import make_dft
 from .logger import Logger
@@ -211,7 +211,7 @@ def run():
     na = len(x0)  # number of atoms
     atom_types = [unit_cell.atom(i).label for i in range(na)]
     # masses in A_r
-    m = np.array([atom_masses[label] for label in atom_types]) * 1822.89
+    m = np.array([atom_masses[label] for label in atom_types], dtype=np.float64) * dalton_to_me
 
     with Logger():
         # Velocity Verlet time-stepping
