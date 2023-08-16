@@ -110,7 +110,7 @@ class Force:
                          'band_gap': res['band_gap'],
                          'scf_dict': res})
         pprint('band_gap: ', res['band_gap'])
-        forces = np.array(self.dft.dft_obj.forces().calc_forces_total()).T
+        forces = np.array(self.dft.dft_obj.forces().calc_forces_total(add_scf_corr=False)).T
         pprint('nscf: ', res['num_scf_iterations'])
 
         Logger().insert({
