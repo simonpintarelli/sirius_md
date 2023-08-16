@@ -204,16 +204,6 @@ class DftObliviousGroundState:
         self.energy_tol = kwargs["energy_tol"]
         self.maxiter = kwargs["maxiter"]
 
-    def _generate_density_potential(self, kset):
-        density = self.dft_obj.density()
-        potential = self.dft_obj.potential()
-
-        density.generate(kset)
-        density.fft_transform(1)
-
-        potential.generate(density)
-        potential.fft_transform(1)
-
     def update_and_find(self, pos, C=None, tol=None):
         """
         Update positions and compute ground state
