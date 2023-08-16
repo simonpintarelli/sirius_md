@@ -15,7 +15,7 @@ def shake(Cn, C,etol = 5e-15, max_iter = 100 ):
     B = C.H @ Cn
     I = identity_like(A)
     Xn = 0.5 * (I - A)
-    for i in range(max_iter): #TODO: Add the number of iteration in input file
+    for _ in range(max_iter+1): #TODO: Add the number of iteration in input file
         Xn = 0.5*(I - A + Xn @ (I - B) + (I - B.H) @ Xn - (Xn @ Xn))
         XC = C @ Xn.H
         Cp = Cn + XC # eq. (4.3) in T&P
@@ -23,8 +23,8 @@ def shake(Cn, C,etol = 5e-15, max_iter = 100 ):
         log.debug(f"error shake : {error}")
         if error < etol:
             log.debug(f"plane wave norms: {np.linalg.norm(Cp[0,0], axis=0)}")
-            break
-    return Cp, XC
+            return Cp, XC
+    raise Exception('shake failed to converge')
 
 def g_dot(A: PwCoeffs,B: PwCoeffs):
     AB = identity_like(A.H@B)
@@ -49,7 +49,7 @@ def g_shake(Cn, C, etol = 5e-15, max_iter = 100 ):
     B = g_dot(C, Cn)
     I = identity_like(A)
     Xn = 0.5 * (I - A)
-    for i in range(max_iter): #TODO: Add the number of iteration in input file
+    for _ in range(max_iter+1): #TODO: Add the number of iteration in input file
         Xn = 0.5*(I - A + Xn @ (I - B) + (I - B.H) @ Xn - (Xn @ Xn))
         XC = C @ Xn.H
         Cp = Cn + XC # eq. (4.3) in T&P
@@ -58,8 +58,8 @@ def g_shake(Cn, C, etol = 5e-15, max_iter = 100 ):
         log.debug(f"error shake : {error}")
         if error < etol:
             log.debug(f"plane wave norms in gamme point: {np.diag(CpHCp[0,0])}")
-            break
-    return Cp, XC
+            return Cp, XC
+    raise Exception('shake failed to converge')
 
 
 
