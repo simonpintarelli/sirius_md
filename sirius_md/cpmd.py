@@ -129,7 +129,7 @@ class CPMDForce:
 
 
         # Forces acting on nuclei
-        F = np.array(self.sirius_dft_gs.forces().calc_forces_total()).T
+        F = np.array(self.sirius_dft_gs.forces().calc_forces_total(add_scf_corr=False)).T
 
 
         return F@self.Lh.T, Eks, Hx
