@@ -153,7 +153,7 @@ def run():
         solvers = {"shake": shake,"rattle": rattle}
     Fh = CPMDForce(dft_)
     F, Eks, Hx = Fh(kset.C, kset.fn, x0)
-    log.debug(f"initial KS energy: {Eks}")
+    log.debug(f"initial KS energy: {Eks:.12f}")
     log.info ("---------Starting main loop-----------")
     for i in range(N):
         log.info(f" iteration {i}")
@@ -162,9 +162,9 @@ def run():
         vc = to_cart(vn, lattice_vectors)
         ekin_x = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
         ekin_c =  me * np.sum(np.real(np.diag((un.H@un)[0,0]))) #TODO: generalize
-        log.info(f"T_ions : {ekin_x}")
-        log.info(f"T_coeff: {ekin_c}")
-        log.info(f"Total: {Eksn + ekin_x + ekin_c}")
+        log.info(f"T_ions : {ekin_x:.12f}")
+        log.info(f"T_coeff: {ekin_c:.12f}")
+        log.info(f"Total: {Eksn + ekin_x + ekin_c:.12f}")
         log.info(f"Positions:\n {xn} \n")
         x0 = xn
         v0 = vn
