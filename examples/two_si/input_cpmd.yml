@@ -1,10 +1,9 @@
 parameters:
   # time step in atomic units
-  dt: 13 
+  dt: 10
   # number of time steps
   N: 1000
   # electronic fictitious mass
-  me: 300 
+  me: 300
   # temperature in Kelvin
-  T: 0 
-
+  T: 0
