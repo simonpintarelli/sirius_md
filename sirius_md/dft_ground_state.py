@@ -1,17 +1,18 @@
 """Wrappers for SIRIUS DFT_ground_state class"""
 import numpy as np
 from scipy.special import binom
-
+from typing import Union
 from .dft_direct_minimizer import OTMethod, MVP2Method, solver_base
-from sirius import set_atom_positions
-from sirius.coefficient_array import threaded, spdiag, l2norm
+from sirius import set_atom_positions, DFT_ground_state
+from sirius.coefficient_array import threaded, spdiag, l2norm, PwCoeffs
 from sirius import Logger as pprinter
 from scipy import linalg as la
 
-pprint = pprinter()
+# pprint = pprinter()
+
 
 def loewdin(X):
-    """ Apply Loewdin orthogonalization to wfct."""
+    """Apply Loewdin orthogonalization to wfct."""
     S = X.H @ X
     w, U = S.eigh()
     Sm2 = U @ spdiag(1 / np.sqrt(w)) @ U.H
@@ -26,7 +27,9 @@ def modified_gram_schmidt(X):
     for k in range(m):
         Q[:, k] = X[:, k]
         for i in range(k):
-            Q[:, k] = Q[:, k] - np.tensordot(Q[:, k], np.conj(Q[:, i]), axes=2) * Q[:, i]
+            Q[:, k] = (
+                Q[:, k] - np.tensordot(Q[:, k], np.conj(Q[:, i]), axes=2) * Q[:, i]
+            )
         Q[:, k] = Q[:, k] / np.linalg.norm(Q[:, k])
     return Q
 
@@ -35,7 +38,7 @@ def _solve(A, X):
     """
     returns A⁻¹ X
     """
-    out = type(X)(dtype=X.dtype, ctype=X.ctype)
+    out = PwCoeffs()
     for k in X.keys():
         out[k] = np.linalg.solve(A[k], X[k])
     return out
@@ -49,7 +52,8 @@ def cholesky(X):
 def is_insulator(fn):
     @threaded
     def _is_insulator(fn):
-        return np.linalg.norm(fn-np.mean(fn))
+        return np.linalg.norm(fn - np.mean(fn))
+
     # check if bands are not constant
     return np.sum(_is_insulator(fn)) < 1e-8
 
@@ -84,8 +88,8 @@ def align_subspace(C, Cp):
     U, _, Vh = Om.svd(full_matrices=False)
     C_phase = C @ (U @ Vh)
     # pprint('U offdiag', l2norm(U-diag(diag(U))))
-    pprint('aligned: %.5e' % l2norm(C_phase-Cp))
-    pprint('unaligned: %.5e' % l2norm(C-Cp))
+    # pprint("aligned: %.5e" % l2norm(C_phase - Cp))
+    # pprint("unaligned: %.5e" % l2norm(C - Cp))
     # obtain current wave function coefficients
     return C_phase
 
@@ -119,6 +123,7 @@ def align_occupied_subspace(C, Cp, fn):
         return align_subspace(C, Cp)
 
     from copy import deepcopy
+
     C_phase = deepcopy(C)
 
     for k in C.keys():
@@ -126,11 +131,11 @@ def align_occupied_subspace(C, Cp, fn):
         Cpk = Cp[k]
         fnk = fn[k]
 
-        ids, = np.where(np.isclose(fnk, 0))
+        (ids,) = np.where(np.isclose(fnk, 0))
         jocc = ids[0]  # first empty band
 
         # assert all occupation numbers are equal
-        assert np.linalg.norm(fnk[:jocc]-np.mean(fnk[:jocc])) < 1e-9
+        assert np.linalg.norm(fnk[:jocc] - np.mean(fnk[:jocc])) < 1e-9
 
         Om = Ck[:, :jocc].H @ Cpk[:, :jocc]
         U, _, Vh = np.linalg.svd(Om, full_matrices=False)
@@ -154,15 +159,14 @@ class DftGroundState:
 
         use_sym = kset.ctx().use_symmetry()
 
-        density.generate(kset,
-                         use_sym,
-                         False, # add core (only for lapw)
-                         True # transform to real space grid
-                         )
+        density.generate(
+            kset,
+            use_sym,
+            False,  # add core (only for lapw)
+            True,  # transform to real space grid
+        )
 
-        potential.generate(density, use_sym,
-                           True # transform to real space grid
-                           )
+        potential.generate(density, use_sym, True)  # transform to real space grid
 
     def update_and_find(self, pos, C=None, tol=None):
         """
@@ -183,8 +187,8 @@ class DftGroundState:
             kset.C = C
             self._generate_density_potential(kset)
 
-        pprint('DEBUG:: sum(fn) = %.9f' % np.sum(kset.fn))
-        pprint('DEBUG:: fn',  kset.fn)
+        # pprint("DEBUG:: sum(fn) = %.9f" % np.sum(kset.fn))
+        # pprint("DEBUG:: fn", kset.fn)
 
         return self.dft_obj.find(
             density_tol=self.density_tol if tol is None else tol,
@@ -196,9 +200,9 @@ class DftGroundState:
 
 
 class DftObliviousGroundState:
-    """plain SCF. Always restart from scratch, no extrapolation. """
+    """plain SCF. Always restart from scratch, no extrapolation."""
 
-    def __init__(self, solver : solver_base, **kwargs):
+    def __init__(self, solver: solver_base, **kwargs):
         self.dft_obj = solver
         self.density_tol = kwargs["density_tol"]
         self.energy_tol = kwargs["energy_tol"]
@@ -223,7 +227,7 @@ class DftObliviousGroundState:
 
         # update density and potential after dft_obj.update (if pw have changed)
         if C is not None:
-            raise Exception('called with initial guess')
+            raise Exception("called with initial guess")
 
         return self.dft_obj.find(
             density_tol=self.density_tol if tol is None else tol,
@@ -236,20 +240,20 @@ class DftObliviousGroundState:
 
 def Bm(K, j):
     """Extrapolation coefficients from Kolafa 0 < j < K+2"""
-    return (-1)**(j+1) * j * binom(2*K + 2, K+1-j) / binom(2*K, K)
+    return (-1) ** (j + 1) * j * binom(2 * K + 2, K + 1 - j) / binom(2 * K, K)
 
 
 class DftWfExtrapolate(DftGroundState):
     """extrapolate wave functions."""
 
-    def __init__(self, solver : solver_base, order=3, **kwargs):
+    def __init__(self, solver: solver_base, order=3, **kwargs):
         super().__init__(solver, **kwargs)
         self.Cs = [self.dft_obj.k_point_set().C]
         self.order = order
         # extrapolation coefficients
-        self.Bm = [Bm(order, j) for j in range(1, order+2)]
-        pprint('Extrapolation coefficients: ', self.Bm)
-        pprint('Extrapolation order: ', len(self.Bm))
+        self.Bm = [Bm(order, j) for j in range(1, order + 2)]
+        # pprint("Extrapolation coefficients: ", self.Bm)
+        # pprint("Extrapolation order: ", len(self.Bm))
         assert np.isclose(np.sum(self.Bm), 1)
 
     def update_and_find(self, pos):
@@ -260,8 +264,8 @@ class DftWfExtrapolate(DftGroundState):
 
         kset = self.dft_obj.k_point_set()
         # obtain current wave function coefficients
-        if len(self.Cs) >= self.order+1:
-            pprint('extrapolate')
+        if len(self.Cs) >= self.order + 1:
+            # pprint("extrapolate")
             # this is Eq (19) from:
             # Kolafa, J., Time-reversible always stable predictor–corrector method
             #             for molecular dynamics of polarizable molecules,
@@ -269,7 +273,9 @@ class DftWfExtrapolate(DftGroundState):
             Cp = self.Bm[0] * self.Cs[-1]
             for j in range(1, len(self.Bm)):
                 # pprint('Bm', 'j', j, ':', self.Bm[j])
-                Cp += self.Bm[j] * self.Cs[-(j+1)] @ (self.Cs[-(j+1)].H @ self.Cs[-1])
+                Cp += (
+                    self.Bm[j] * self.Cs[-(j + 1)] @ (self.Cs[-(j + 1)].H @ self.Cs[-1])
+                )
             # orthogonalize
             Cp = loewdin(Cp)
             # Cp = align_subspace(Cp, eye_like(Cp))
@@ -279,10 +285,12 @@ class DftWfExtrapolate(DftGroundState):
             # Cp = align_occupied_subspace(Cp, kset.C, kset.fn)
             res = super().update_and_find(pos, C=Cp)
 
-            C_phase = align_occupied_subspace(kset.C, Cp, kset.fn)
-            omega = (self.order+1) / (2*self.order + 1)
+            C_phase = align_subspace(kset.C, Cp)
+            omega = (self.order + 1) / (2 * self.order + 1)
             # apply corrector and append to history
-            self.Cs.append(align_occupied_subspace(loewdin(omega*C_phase + (1-omega)*Cp), self.Cs[-1], kset.fn))
+            self.Cs.append(
+                align_subspace(loewdin(omega * C_phase + (1 - omega) * Cp), self.Cs[-1])
+            )
             # self.Cs.append(omega*C_phase + (1-omega)*Cp)
 
             return res
@@ -290,13 +298,14 @@ class DftWfExtrapolate(DftGroundState):
         # initial steps with higher tolerance
         res = super().update_and_find(pos)
         C = kset.C
-        self.Cs.append(align_occupied_subspace(C, self.Cs[-1], kset.fn))
+        self.Cs.append(align_subspace(C, self.Cs[-1]))
         return res
+
 
 def loewdin2(X):
     S = X.H @ X
     w, U = S.eigh()
-    Sm2 = U @ spdiag(1/np.sqrt(w))
+    Sm2 = U @ spdiag(1 / np.sqrt(w))
     return X @ Sm2
 
 
@@ -309,7 +318,7 @@ class NiklassonWfExtrapolate(DftGroundState):
     http://dx.doi.org/10.1103/PhysRevB.82.075110
     """
 
-    def __init__(self, solver : solver_base, order, **kwargs):
+    def __init__(self, solver: solver_base, order, **kwargs):
         super().__init__(solver, **kwargs)
         self.Cps = [self.dft_obj.k_point_set().C]
         self.order = order
@@ -318,18 +327,26 @@ class NiklassonWfExtrapolate(DftGroundState):
         # Extended Lagrangian Born–Oppenheimer molecular dynamics with dissipation,
         # 130(21), 214109 ().  http://dx.doi.org/10.1063/1.3148075
         self.coeffs = {
-            0: {'kappa': 2, 'a': 0, 'c': []},
-            3: {'kappa': 1.69, 'a': 0.15, 'c': [-2, 3, 0, -1]},
-            4: {'kappa': 1.75, 'a': 0.057, 'c': [-3, 6, -2, -2, 1]},
-            5: {'kappa': 1.82, 'a': 0.018, 'c': [-6, 14, -8, -3, 4, -1]},
-            6: {'kappa': 1.84, 'a': 0.0055, 'c': [-14, 36, -27, -2, 12, -6, 1]},
-            7: {'kappa': 1.86, 'a': 0.0016, 'c': [-36, 99, -88, 11, 32, -25, 8, -1]},
-            8: {'kappa': 1.88, 'a': 0.00044, 'c': [-99, 286, -286, 78, 78, -90, 42, -10, 1]},
-            9: {'kappa': 1.89, 'a': 0.00012, 'c': [-286, 858, -936, 364, 168, -300, 184, -63, 12, -1]}
+            0: {"kappa": 2, "a": 0, "c": []},
+            3: {"kappa": 1.69, "a": 0.15, "c": [-2, 3, 0, -1]},
+            4: {"kappa": 1.75, "a": 0.057, "c": [-3, 6, -2, -2, 1]},
+            5: {"kappa": 1.82, "a": 0.018, "c": [-6, 14, -8, -3, 4, -1]},
+            6: {"kappa": 1.84, "a": 0.0055, "c": [-14, 36, -27, -2, 12, -6, 1]},
+            7: {"kappa": 1.86, "a": 0.0016, "c": [-36, 99, -88, 11, 32, -25, 8, -1]},
+            8: {
+                "kappa": 1.88,
+                "a": 0.00044,
+                "c": [-99, 286, -286, 78, 78, -90, 42, -10, 1],
+            },
+            9: {
+                "kappa": 1.89,
+                "a": 0.00012,
+                "c": [-286, 858, -936, 364, 168, -300, 184, -63, 12, -1],
+            },
         }
 
         if order not in self.coeffs:
-            raise ValueError('invalid order given.')
+            raise ValueError("invalid order given.")
 
     def update_and_find(self, pos):
         """
@@ -338,22 +355,27 @@ class NiklassonWfExtrapolate(DftGroundState):
         """
 
         kset = self.dft_obj.k_point_set()
-        if len(self.Cps) >= max(2, self.order+1):
-            pprint('niklasson extrapolate')
+        if len(self.Cps) >= max(2, self.order + 1):
+            # pprint("niklasson extrapolate")
             C = kset.C
             CU = align_subspace(C, self.Cps[-1])
-            Cp = 2*self.Cps[-1] - self.Cps[-2] + self.coeffs[self.order]['kappa']*(CU-self.Cps[-1])
-            cm = self.coeffs[self.order]['c']
+            Cp = (
+                2 * self.Cps[-1]
+                - self.Cps[-2]
+                + self.coeffs[self.order]["kappa"] * (CU - self.Cps[-1])
+            )
+            cm = self.coeffs[self.order]["c"]
             if self.order > 0:
-                for i in range(self.order+1):
+                for i in range(self.order + 1):
                     # others
-                    Cp += self.coeffs[self.order]['a'] * cm[i] * self.Cps[-(i+1)]
+                    Cp += self.coeffs[self.order]["a"] * cm[i] * self.Cps[-(i + 1)]
 
-            # Cp = align_occupied_subspace(loewdin(Cp), self.Cps[-1], kset.fn)
             Cp = modified_gram_schmidt(Cp)
             # Cp = loewdin(Cp)
             # append history
-            self.Cps = self.Cps[1:] + [Cp, ]
+            self.Cps = self.Cps[1:] + [
+                Cp,
+            ]
 
             res = super().update_and_find(pos, C=Cp)
             return res
@@ -363,11 +385,13 @@ class NiklassonWfExtrapolate(DftGroundState):
         C = kset.C
 
         # subspace alignment for initial, non-extrapolated steps
-        self.Cps.append(align_occupied_subspace(C, self.Cps[-1], kset.fn))
+        self.Cps.append(align_subspace(C, self.Cps[-1]))
         return res
 
 
-def make_dft(solver, parameters):
+def create_ground_state_solver(
+    solver: DFT_ground_state, parameters
+) -> Union[solver_base, DftGroundState]:
     """DFT object factory.
 
     Arguments:
@@ -390,7 +414,6 @@ def make_dft(solver, parameters):
             pass
         else:
             raise Exception("invalid solver")
-
 
     if parameters["parameters"]["method"]["type"] == "plain":
         return DftGroundState(
