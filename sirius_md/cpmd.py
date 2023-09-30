@@ -26,17 +26,17 @@ def shake(Cn, C,etol = 5e-15, max_iter = 100 ):
             return Cp, XC
     raise Exception('shake failed to converge')
 
-def g_dot(A: PwCoeffs,B: PwCoeffs):
-    AB = identity_like(A.H@B)
+def g_dot(A: PwCoeffs, B: PwCoeffs):
+    AB = zeros_like(A.H @ B)
 
-    A_matrix = A[0,0]
-    B_matrix = B[0,0]
+    A_matrix = A[0, 0]
+    B_matrix = B[0, 0]
 
-    IJ = A_matrix[1:,:].H @ B_matrix[1:,:]
+    IJ = np.conj(A_matrix[1:, :]).T @ B_matrix[1:, :]
 
-    S = A_matrix[0,:].H@B_matrix[0,:]+IJ+np.conj(IJ)
+    S = np.outer(np.conj(A_matrix[0, :]), B_matrix[0, :]) + IJ + np.conj(IJ)
 
-    AB[0,0] = S
+    AB[0, 0] = S
     return AB
 
 
