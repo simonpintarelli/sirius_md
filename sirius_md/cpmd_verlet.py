@@ -16,7 +16,6 @@ from h5py import File
 from mpi4py import MPI
 from sirius import CoefficientArray, PwCoeffs
 
-log.basicConfig(format='%(levelname)s:%(message)s', level=log.DEBUG)
 
 def sirius_load_state(prefix, name, dst):
     """
@@ -66,14 +65,8 @@ def boltzmann_velocities(m, T):
     factors = np.sqrt(kT/m)
     return np.random.normal(loc=0, scale = factors, size=(num_atoms, 3)) #Assuming 3D simulations
 
-
-
-def run():
+def cpmd_verlet(input_vars, restart=False):
     """TODO"""
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--restart', nargs='?', type=argparse.FileType('r'))
-    args = parser.parse_args()
-
     log.info("Starting CPMD simulation")
     t1 = time.time()
     input_vars = yaml.safe_load(open('input_cpmd.yml', 'r'))
@@ -86,9 +79,9 @@ def run():
     initial_coeff = None
 
 
-    if args.restart:
+    if restart:
         log.info("Restarting from MD results")
-        restart_data = json.load(args.restart)
+        restart_data = json.load(restart)
         initial_positions = restart_data[-1]['x']
         initial_velocities = restart_data[-1]['v']
         C_from_disk = sirius_load_state("init", "C", dst=PwCoeffs(ctype=np.matrix, dtype=np.complex128))
@@ -113,7 +106,7 @@ def run():
     log.debug(f"lattice vectors: {lattice_vectors}")
 
     log.info("Setting initial conditions")
-    if args.restart:
+    if restart:
         x0 = atom_positions(unit_cell)
         update_sirius(dft_)
         v0 = from_cart(initial_velocities, lattice_vectors)
@@ -137,8 +130,8 @@ def run():
 
     log.debug(f"Initial x \n {x0}")
     log.debug(f"Initial v \n {v0}")
-    log.debug(f"Initial C \n {kset.C[0,0].shape} \n{kset.C[0,0]}")
-    log.debug(f"Initial u \n {u0[0,0]}")
+    # log.debug(f"Initial C \n {kset.C[0,0].shape} \n{kset.C[0,0]}")
+    # log.debug(f"Initial u \n {u0[0,0]}")
 
     vc = to_cart(v0, lattice_vectors)
     log.debug(f"v cartesian \n {vc}")
@@ -169,8 +162,18 @@ def run():
         x0 = xn
         v0 = vn
         u0 = un
+        yield x0, v0, u0
         F = Fn
         Hx = Hxn
     t2 = time.time()
     log.info(f"Simulation ended successfully. Total time: {t2-t1}")
-    return 0
+
+def run():
+    log.basicConfig(format='%(levelname)s:%(message)s', level=log.DEBUG, force=True)
+    input_vars = yaml.safe_load(open('input_cpmd.yml', 'r'))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--restart', nargs='?', type=argparse.FileType('r'))
+    args = parser.parse_args()
+
+    for _ in cpmd_verlet(input_vars, restart=args.restart):
+        continue
