@@ -217,7 +217,7 @@ def run():
     args = parser.parse_args()
 
     input_vars = yaml.safe_load(open("input.yml", "r"))
-    velocity_verlet(input_vars, args.restart):
+    velocity_verlet(input_vars, args.restart)
 
 if __name__ == "__main__":
     run()

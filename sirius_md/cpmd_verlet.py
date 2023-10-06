@@ -63,7 +63,6 @@ def cpmd_verlet_raw(input_vars, kset, x0=None, v0=None, u0=None):
     me = input_vars["parameters"]["me"]  # Electronic fictitious mass
     dt = input_vars["parameters"]["dt"]
     N = input_vars["parameters"]["N"]
-    T = input_vars["parameters"]["T"]
     dft_ = DFT_ground_state(kset)
     Fh = CPMDForce(dft_)
 
@@ -80,12 +79,18 @@ def cpmd_verlet_raw(input_vars, kset, x0=None, v0=None, u0=None):
         * dalton_to_me
     )
 
+    if x0 is None:
+        x0 = atom_positions(unit_cell)
+    if v0 is None:
+        v0 = np.zeros_like(x0)
+    if u0 is None:
+        u0 = zeros_like(kset.C)
+
     vc = to_cart(v0, lattice_vectors)
     log.debug(f"v cartesian \n {vc}")
     ekin = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
     log.debug(f"Initial ion kinetic energy \n {ekin}")
-    sirius_config = json.load(open("sirius.json", "r"))
-    if sirius_config["parameters"]["gamma_point"]:
+    if kset.ctx().gamma_point:
         log.info("Using gamma approximation")
         solvers = {"shake": g_shake, "rattle": g_rattle}
     else:
