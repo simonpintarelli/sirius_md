@@ -68,7 +68,7 @@ class OTMethod(solver_base):
             maxiter=num_dft_iter,
             restart=10,
             mtype='PR',
-            verbose=True,
+            verbose=False,
             log=True,
             M=M,
             tol=float(energy_tol))
@@ -124,8 +124,8 @@ class MVP2Method(solver_base):
                                     tau=0.1,
                                     callback=make_callback(histE))
         tstop = time.time()
-        pprint('MVP2 took: ', tstop-tstart, ' seconds')
-        pprint('number of steps found by callback:', len(histE))
+        # pprint('MVP2 took: ', tstop-tstart, ' seconds')
+        # pprint('number of steps found by callback:', len(histE))
 
         return {
             'converged': success,

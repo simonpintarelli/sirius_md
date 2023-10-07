@@ -60,9 +60,10 @@ def cpmd_verlet_raw(input_vars, kset, x0=None, v0=None, u0=None):
     v0         -- initial velocities (reduced coordinates)
     u0         -- TODO
     """
+
     me = input_vars["parameters"]["me"]  # Electronic fictitious mass
     dt = input_vars["parameters"]["dt"]
-    N = input_vars["parameters"]["N"]
+    N = None if "N" not in input_vars["paratmers"]  else input_vars["Paratmers"]["N"]
     dft_ = DFT_ground_state(kset)
     Fh = CPMDForce(dft_)
 
@@ -101,7 +102,9 @@ def cpmd_verlet_raw(input_vars, kset, x0=None, v0=None, u0=None):
     log.debug(f"initial KS energy: {Eks:.12f}")
     log.info("---------Starting main loop-----------")
     t1 = time.time()
-    for i in range(N):
+
+    i = 0
+    while N is None or i < N:
         log.info(f" iteration {i}")
         xn, vn, Cn, un, Fn, Hxn, Eksn = cpmd_velocity_verlet(
             x0, v0, u0, F, Hx, Fh, dt, m, me, kset, solvers

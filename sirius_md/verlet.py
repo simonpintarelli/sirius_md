@@ -16,7 +16,7 @@ import h5py
 from h5py import File
 from mpi4py import MPI
 
-pprint = pprinter()
+# pprint = pprinter()
 
 
 class Force:
@@ -54,11 +54,11 @@ class Force:
                 "scf_dict": res,
             }
         )
-        pprint("band_gap: ", res["band_gap"])
+        # pprint("band_gap: ", res["band_gap"])
         forces = np.array(
             self.dft.dft_obj.forces().calc_forces_total(add_scf_corr=False)
         ).T
-        pprint("nscf: ", res["num_scf_iterations"])
+        # pprint("nscf: ", res["num_scf_iterations"])
 
         Logger().insert(
             {
@@ -102,7 +102,7 @@ def velocity_verlet_step(x, v, F, dt, Fh, m):
     vn = v + 0.5 / m * (F + Fn) * dt
     # remove momentum
     p = np.sum(vn * m, axis=0)
-    pprint("momentum:", p)
+    # pprint("momentum:", p)
     # vn -= p / np.sum(m)
     # pprint('momentum (fixed):', p)
     Logger().insert(
@@ -126,7 +126,7 @@ def velocity_verlet_raw(input_vars, kset, x0=None, v0=None):
     v0         -- initial velocities (reduced coordinates)
     """
 
-    N = input_vars["parameters"]["N"]
+    N = None if "N" not in input_vars["paratmers"]  else input_vars["Paratmers"]["N"]
     dt = input_vars["parameters"]["dt"]
     # create ground state solver: this is a DFT solver with the given extrapolation method
     gs_solver = create_ground_state_solver(sirius.DFT_ground_state(kset), input_vars)
@@ -150,14 +150,15 @@ def velocity_verlet_raw(input_vars, kset, x0=None, v0=None):
         * dalton_to_me
     )
 
-    for i in range(N):
-        pprint("iteration: ", i, "\n")
+    i = 0
+    while N is None or i < N:
+        # pprint("iteration: ", i, "\n")
 
         xn, vn, Fn, EKS = velocity_verlet_step(x0, v0, F, dt, Fh, m)
-        pprint("displacement: %.2e" % np.linalg.norm(xn - x0))
+        # pprint("displacement: %.2e" % np.linalg.norm(xn - x0))
         vc = to_cart(vn, lattice_vectors)
         ekin = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
-        pprint("Etot: %10.8f, Ekin: %10.8f, Eks: %10.8f" % (EKS + ekin, ekin, EKS))
+        # pprint("Etot: %10.8f, Ekin: %10.8f, Eks: %10.8f" % (EKS + ekin, ekin, EKS))
 
         data = {
             "i": i,
@@ -174,6 +175,7 @@ def velocity_verlet_raw(input_vars, kset, x0=None, v0=None):
         x0 = xn
         v0 = vn
         F = Fn
+        i += 1
 
 
 def velocity_verlet(input_vars, restart):

@@ -8,7 +8,7 @@ from sirius.coefficient_array import threaded, spdiag, l2norm, PwCoeffs
 from sirius import Logger as pprinter
 from scipy import linalg as la
 
-pprint = pprinter()
+# pprint = pprinter()
 
 
 def loewdin(X):
@@ -88,8 +88,8 @@ def align_subspace(C, Cp):
     U, _, Vh = Om.svd(full_matrices=False)
     C_phase = C @ (U @ Vh)
     # pprint('U offdiag', l2norm(U-diag(diag(U))))
-    pprint("aligned: %.5e" % l2norm(C_phase - Cp))
-    pprint("unaligned: %.5e" % l2norm(C - Cp))
+    # pprint("aligned: %.5e" % l2norm(C_phase - Cp))
+    # pprint("unaligned: %.5e" % l2norm(C - Cp))
     # obtain current wave function coefficients
     return C_phase
 
@@ -187,8 +187,8 @@ class DftGroundState:
             kset.C = C
             self._generate_density_potential(kset)
 
-        pprint("DEBUG:: sum(fn) = %.9f" % np.sum(kset.fn))
-        pprint("DEBUG:: fn", kset.fn)
+        # pprint("DEBUG:: sum(fn) = %.9f" % np.sum(kset.fn))
+        # pprint("DEBUG:: fn", kset.fn)
 
         return self.dft_obj.find(
             density_tol=self.density_tol if tol is None else tol,
@@ -252,8 +252,8 @@ class DftWfExtrapolate(DftGroundState):
         self.order = order
         # extrapolation coefficients
         self.Bm = [Bm(order, j) for j in range(1, order + 2)]
-        pprint("Extrapolation coefficients: ", self.Bm)
-        pprint("Extrapolation order: ", len(self.Bm))
+        # pprint("Extrapolation coefficients: ", self.Bm)
+        # pprint("Extrapolation order: ", len(self.Bm))
         assert np.isclose(np.sum(self.Bm), 1)
 
     def update_and_find(self, pos):
@@ -265,7 +265,7 @@ class DftWfExtrapolate(DftGroundState):
         kset = self.dft_obj.k_point_set()
         # obtain current wave function coefficients
         if len(self.Cs) >= self.order + 1:
-            pprint("extrapolate")
+            # pprint("extrapolate")
             # this is Eq (19) from:
             # Kolafa, J., Time-reversible always stable predictor–corrector method
             #             for molecular dynamics of polarizable molecules,
@@ -356,7 +356,7 @@ class NiklassonWfExtrapolate(DftGroundState):
 
         kset = self.dft_obj.k_point_set()
         if len(self.Cps) >= max(2, self.order + 1):
-            pprint("niklasson extrapolate")
+            # pprint("niklasson extrapolate")
             C = kset.C
             CU = align_subspace(C, self.Cps[-1])
             Cp = (
