@@ -63,7 +63,7 @@ def cpmd_verlet_raw(input_vars, kset, x0=None, v0=None, u0=None):
 
     me = input_vars["parameters"]["me"]  # Electronic fictitious mass
     dt = input_vars["parameters"]["dt"]
-    N = None if "N" not in input_vars["paratmers"]  else input_vars["Paratmers"]["N"]
+    N = None if "N" not in input_vars["parameters"]  else input_vars["parameters"]["N"]
     dft_ = DFT_ground_state(kset)
     Fh = CPMDForce(dft_)
 
@@ -121,15 +121,18 @@ def cpmd_verlet_raw(input_vars, kset, x0=None, v0=None, u0=None):
         v0 = vn
         u0 = un
         yield {
-            "x": x0,
-            "v": v0,
-            "etot": Eksn + ekin_x + ekin_c,
+            "i": i,
+            "t": i*dt,
+            "x": to_cart(x0, lattice_vectors),
+            "v": vc,
+            "E": Eksn + ekin_x + ekin_c,
             "EKS": Eksn,
             "ekin": ekin_x,
             "ekin_u": ekin_c,
         }
         F = Fn
         Hx = Hxn
+        i += 1
     t2 = time.time()
     log.info(f"Simulation ended successfully. Total time: {t2-t1}")
 

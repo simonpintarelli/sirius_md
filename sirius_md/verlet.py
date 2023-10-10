@@ -126,7 +126,7 @@ def velocity_verlet_raw(input_vars, kset, x0=None, v0=None):
     v0         -- initial velocities (reduced coordinates)
     """
 
-    N = None if "N" not in input_vars["paratmers"]  else input_vars["Paratmers"]["N"]
+    N = None if "N" not in input_vars["parameters"]  else input_vars["parameters"]["N"]
     dt = input_vars["parameters"]["dt"]
     # create ground state solver: this is a DFT solver with the given extrapolation method
     gs_solver = create_ground_state_solver(sirius.DFT_ground_state(kset), input_vars)
