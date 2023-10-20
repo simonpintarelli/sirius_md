@@ -14,8 +14,16 @@ Run
           OMP_NUM_THREADS=4 verlet | tee verlet.out
 
 
-Config example
-==============
+.. code:: python
+
+          OMP_NUM_THREADS=4 cpmd | tee cpmd.out
+
+
+Input files
+============
+
+BOMB
+----
 
 `input.yml`
 
@@ -45,3 +53,19 @@ Config example
             dt: 1
             # number of time steps
             N: 100
+
+CPMD
+----
+
+`input_cpmd.yml`
+
+.. code:: yaml
+          parameters:
+          # time step in atomic units
+            dt: 10
+            # number of time steps
+            N: 1000
+            # electronic fictitious mass
+            me: 300
+            # temperature in Kelvin
+            T: 0
