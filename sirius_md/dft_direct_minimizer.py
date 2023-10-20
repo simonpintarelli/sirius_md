@@ -10,38 +10,9 @@ from sirius import Logger as pprinter
 pprint = pprinter()
 
 
-class OTMethod:
-    """Orbital transformation method adaptor."""
+class solver_base:
     def __init__(self, dft_obj):
         self.dft_obj = dft_obj
-        self.kset = dft_obj.k_point_set()
-        potential = dft_obj.potential()
-        density = dft_obj.density()
-        # Hamiltonian, provides gradient H|Ψ>
-        self.H = ApplyHamiltonian(potential, self.kset)
-        # create object to compute the total energy
-        self.E = Energy(self.kset, potential, density, self.H)
-
-    def find(self, energy_tol, num_dft_iter, **_):
-        """Find ground state by the orbital transformation method."""
-        c0, x = get_c0_x(self.kset)
-        # prepare a simple kinetic preconditioner
-        M = make_kinetic_precond(self.kset, c0, asPwCoeffs=True, eps=1e-3)
-        # run NLCG
-        _, niter, success, histE = minimize(
-            x,
-            f=lambda x: self.E(c(x, c0)),
-            df=ConstrainedGradient(self.H, c0),
-            maxiter=num_dft_iter,
-            restart=10,
-            mtype='PR',
-            verbose=True,
-            log=True,
-            M=M,
-            tol=float(energy_tol))
-
-        return {'converged': success, 'num_scf_iterations': niter,
-                'band_gap': -1, 'energy': {'total': histE[-1]}}
 
     def density(self):
         """Return SIRIUS density obj."""
@@ -72,10 +43,45 @@ class OTMethod:
         return self.dft_obj.serialize()
 
 
-class MVP2Method:
+class OTMethod(solver_base):
+    """Orbital transformation method adaptor."""
+    def __init__(self, dft_obj):
+        super().__init__(dft_obj)
+        self.kset = dft_obj.k_point_set()
+        potential = dft_obj.potential()
+        density = dft_obj.density()
+        # Hamiltonian, provides gradient H|Ψ>
+        self.H = ApplyHamiltonian(potential, self.kset)
+        # create object to compute the total energy
+        self.E = Energy(self.kset, potential, density, self.H)
+
+    def find(self, energy_tol, num_dft_iter, **_):
+        """Find ground state by the orbital transformation method."""
+        c0, x = get_c0_x(self.kset)
+        # prepare a simple kinetic preconditioner
+        M = make_kinetic_precond(self.kset, c0, asPwCoeffs=True, eps=1e-3)
+        # run NLCG
+        _, niter, success, histE = minimize(
+            x,
+            f=lambda x: self.E(c(x, c0)),
+            df=ConstrainedGradient(self.H, c0),
+            maxiter=num_dft_iter,
+            restart=10,
+            mtype='PR',
+            verbose=False,
+            log=True,
+            M=M,
+            tol=float(energy_tol))
+
+        return {'converged': success, 'num_scf_iterations': niter,
+                'band_gap': -1, 'energy': {'total': histE[-1]}}
+
+
+class MVP2Method(solver_base):
     """Marzari-Vanderbilt-Payne pseudo-Hamiltonian method."""
     def __init__(self, dft_obj):
-        self.dft_obj = dft_obj
+        super().__init__(dft_obj)
+
         self.kset = dft_obj.k_point_set()
         potential = dft_obj.potential()
         density = dft_obj.density()
@@ -118,8 +124,8 @@ class MVP2Method:
                                     tau=0.1,
                                     callback=make_callback(histE))
         tstop = time.time()
-        pprint('MVP2 took: ', tstop-tstart, ' seconds')
-        pprint('number of steps found by callback:', len(histE))
+        # pprint('MVP2 took: ', tstop-tstart, ' seconds')
+        # pprint('number of steps found by callback:', len(histE))
 
         return {
             'converged': success,
@@ -129,31 +135,3 @@ class MVP2Method:
                 'total': FE
             }
         }
-
-    def density(self):
-        """Return SIRIUS density obj."""
-        return self.dft_obj.density()
-
-    def potential(self):
-        """Return SIRIUS potential obj."""
-        return self.dft_obj.potential()
-
-    def forces(self):
-        """Returns SIRIUS forces obj."""
-        return self.dft_obj.forces()
-
-    def update(self):
-        """Call DFT_ground_state.update"""
-        return self.dft_obj.update()
-
-    def k_point_set(self):
-        """Return SIRIUS k-point set."""
-        return self.dft_obj.k_point_set()
-
-    def initial_state(self):
-        """Return SIRIUS k-point set."""
-        self.dft_obj.initial_state()
-
-    def serialize(self):
-        """Return SIRIUS k-point set."""
-        return self.dft_obj.serialize()

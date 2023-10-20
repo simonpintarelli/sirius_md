@@ -11,10 +11,10 @@ parameters:
   # solver: either ot (orbital transformation method) or scf (standard self-consistent field)
   solver: ot
   # maximal number of scf iterations
-  maxiter: 30
-  potential_tol: 1.0e-4
-  energy_tol: 1.0e-4
+  maxiter: 300
+  density_tol: 1.0e-4
+  energy_tol: 1.0e-10
   # time step in fs
-  dt: 1
+  dt: 5
   # number of time steps
-  N: 100
+  N: 15

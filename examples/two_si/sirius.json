@@ -8,15 +8,15 @@
 
     "parameters" : {
         "electronic_structure_method" : "pseudopotential",
-        "xc_functionals": ["XC_GGA_X_PBE", "XC_GGA_C_PBE"],
+        "xc_functionals": ["XC_LDA_C_PZ", "XC_LDA_X"],
         "smearing_width" : 0.00025,
-        "num_fv_states": 16,
+        "num_fv_states": 4,
         "num_mag_dims" : 0,
-        "gk_cutoff" : 7.0,
-        "pw_cutoff" : 14.00,
-        "use_symmetry": false,
+        "gk_cutoff" : 3.0,
+        "pw_cutoff" : 6.00,
+        "use_symmetry": true,
         "ngridk" : [1, 1, 1],
-        "num_dft_iter": 100,
+        "num_dft_iter": 10000,
         "density_tol": 1e-14,
         "energy_tol": 1e-14,
         "gamma_point": false
@@ -29,21 +29,15 @@
                               [0.0, 1.0, 0.0],
                               [0.0, 0.0, 1.0]
                             ],
-        "lattice_vectors_scale": 6.74,
-        "atom_types" : ["C"],
+        "lattice_vectors_scale": 10.26,
+        "atom_types" : ["Si"],
         "atom_files" : {
-            "C"  : "C.json"
+            "Si"  : "Si.json"
         },
         "atoms" : {
-            "C":
-            [[3.121125,    3.121125,    3.121125],
-             [0.445875,    0.445875,    0.445875],
-             [3.121125,    1.337625,    1.337625],
-             [0.445875,    2.229375,    2.229375],
-             [1.337625,    1.337625,    3.121125],
-             [2.229375,    2.229375,    0.445875],
-             [1.337625,    3.121125,    1.337625],
-             [2.229375,    0.445875,    2.229375]]
+            "Si":
+            [[0.0, 0.0, 0.0], 
+            [1.3575, 1.3575, 1.3575]]
         },
         "atom_coordinate_units": "A"
     },
