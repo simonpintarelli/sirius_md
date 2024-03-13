@@ -5,7 +5,7 @@ import numpy as np
 from sirius.ot import Energy, ApplyHamiltonian
 import logging as log
 import copy as cp
-
+import sys
 
 def shake(Cn, C, etol=5e-15, max_iter=100):
     """Add the Lagrange multipliers to the current wave function coefficients (wfc).
@@ -24,9 +24,62 @@ def shake(Cn, C, etol=5e-15, max_iter=100):
         log.debug(f"error shake : {error}")
         if error < etol:
             log.debug(f"plane wave norms: {np.linalg.norm(Cp[0,0], axis=0)}")
+            log.debug(f"position lagrange multipliers dimension \n {(Xn[0,0]).shape}")
+            log.debug(f"position lagrange multipliers (shake) \n {Xn[0,0]}")
             return Cp, XC
     raise Exception("shake failed to converge")
 
+
+def l_shake(Cn, C, etol=5e-15, inner_tol = 5e-15,max_iter=100):
+    """
+    Linearized version of SHAKE
+    """
+    A = Cn.H @ Cn
+    B = C.H @ Cn
+    I = identity_like(A)
+    Xn = 0.5 * (I - A)
+    for j in range(max_iter + 1): 
+        for i in range(max_iter + 1): 
+            Xi = 0.5 * (I - A + Xn @ (I - B) + (I - B.H) @ Xn )
+            inner_error = np.max(np.abs((Xn-Xi)[0, 0]))
+            log.debug(f"error inner linerized shake : {inner_error}")
+            if inner_error < inner_tol:
+                log.debug(f"linearization {j} converged in {i+1} steps with error {inner_error}!")
+                XC = C @ Xi.H
+                Cp = Cn + XC
+                break  
+            Xn = Xi
+        Cn = Cp
+        A = Cn.H @ Cn
+        error = np.max(np.abs((Cp.H @ Cp - I)[0, 0]))  # TODO: generalize
+        log.debug(f"error shake : {error}")
+        if error < etol:
+            log.debug(f"plane wave norms: {np.linalg.norm(Cp[0,0], axis=0)}")
+            return Cp, XC
+    raise Exception("shake failed to converge")
+
+def ls_shake(Cn, C, w=1 ,etol=5e-15, max_iter=100):
+    """
+    Linearized and symmetrized version of SHAKE with an over-relaxation parameter w
+    """
+    A = Cn.H @ Cn
+    I = identity_like(A)
+    Xn = 0.5 * (I - A)
+    for i in range(max_iter):
+        XC = C @ Xn.H
+        Cp = Cn + XC
+        error = np.max(np.abs((Cp.H @ Cp - I)[0, 0]))
+        log.debug(f"error ls-shake: {error}")
+        if error < etol:
+            log.debug(f"plane wave norms: {np.linalg.norm(Cp[0,0], axis=0)}")
+            log.info(f"final error ls-shake: {error}")
+            log.debug(f"lagrange multipliers (ls_shake) \n {Xn[0,0]}")
+            log.debug(f"lagrange multipliers dimension \n {(Xn[0,0]).shape}")
+            return Cp, XC
+        Cn = Cp
+        A = Cn.H @ Cn
+        Xn = 0.5 * (I - A)
+    raise Exception("shake failed to converge")
 
 def g_dot(A: PwCoeffs, B: PwCoeffs):
     AB = zeros_like(A.H @ B)
@@ -70,10 +123,11 @@ def rattle(un, Cn, XC, dt):
     )  # eq. (4.9) in T&P. Note that XC = (dt^2/2 me)\sum_j\Lambda_{ij}C_j
     D = Cn.H @ un  # in T&P, C is used instead of D
     Y = -0.5 * (D + D.H)
+    log.debug(f"velocity lagrange multipliers dimension \n {(Y[0,0])}")
     YC = Cn @ Y.H
     un = un + YC  # eq. (4.11) in T&P
     error = np.max(np.abs((un.H @ Cn + Cn.H @ un)[0, 0]))
-    log.debug(f"error rattle : {error}")
+    log.info(f"error rattle : {error}")
     return un
 
 

@@ -1,7 +1,7 @@
 import argparse
 import json
 from sirius_md.dft_ground_state import loewdin
-from .cpmd import CPMDForce, shake, rattle, update_sirius, g_shake, g_rattle
+from .cpmd import CPMDForce, shake, rattle, update_sirius, g_shake, g_rattle, ls_shake, l_shake
 import logging as log
 import yaml
 import numpy as np
@@ -10,7 +10,11 @@ from sirius.coefficient_array import zeros_like, identity_like
 from .atom_mass import atom_masses
 from .constants import dalton_to_me
 import time
-from .utils import to_cart, from_cart, initialize, sirius_load_state
+from .utils import to_cart, from_cart, initialize, sirius_load_state, sirius_save_state
+import cProfile
+import timeit
+import sys
+
 
 
 def cpmd_velocity_verlet(x, v, u, F, Hx, Fh, dt, m, me, kset, solvers):
@@ -21,7 +25,17 @@ def cpmd_velocity_verlet(x, v, u, F, Hx, Fh, dt, m, me, kset, solvers):
 
     xn = x + v * dt + 0.5 * F / m * dt**2
     Cn = C + u * dt - 0.5 * kset.fn * Hx / me * dt**2
-    Cn, XC = solvers["shake"](Cn, C)  # XC is used to update the electronic velocities
+    Cn, XC = solvers["shake"](Cn, C) # XC is used to update the electronic velocities
+    ##### Profiling Orthonormality constraints solvers
+
+    ### cprofile
+    #cProfile.runctx('solvers["shake"](Cn, C)', None, locals())
+    ### timeit
+    #t=timeit.Timer('solvers["shake"](Cn, C)',globals=locals())
+    #time = t.timeit(1)
+    #log.debug(f"shake took {time} seconds\n")
+    #exit()
+
     # log.debug(f"plane wave norms: {np.linalg.norm(Cn[0,0], axis=0)}")
     # log.debug(f"plane wave norms in gamme point: {np.diag(g_dot(Cn,Cn)[0,0])}")
     log.debug(f"occupation numbers: {fn}")
@@ -62,7 +76,10 @@ def cpmd_verlet_raw(input_vars, kset, x0=None, v0=None, u0=None):
     """
 
     me = input_vars["parameters"]["me"]  # Electronic fictitious mass
+    log.info(f"Electronic fictitious mass: {me}")
     dt = input_vars["parameters"]["dt"]
+    log.info(f"Time step: {dt}")
+
     N = None if "N" not in input_vars["parameters"]  else input_vars["parameters"]["N"]
     dft_ = DFT_ground_state(kset)
     Fh = CPMDForce(dft_)
@@ -96,19 +113,22 @@ def cpmd_verlet_raw(input_vars, kset, x0=None, v0=None, u0=None):
         solvers = {"shake": g_shake, "rattle": g_rattle}
     else:
         log.info("NOT using gamma approximation")
-        solvers = {"shake": shake, "rattle": rattle}
+        solvers = {"shake": ls_shake, "rattle": rattle}
+        log.info(f"Shake type: {solvers['shake'].__name__}")
     Fh = CPMDForce(dft_)
     F, Eks, Hx = Fh(kset.C, kset.fn, x0)
     log.debug(f"initial KS energy: {Eks:.12f}")
+    log.debug(f"initial coeffcients: \n {kset.C[0,0]}")
+    #sirius_save_state({"C": kset.C, "fn": kset.fn}, prefix="initial_wf")
     log.info("---------Starting main loop-----------")
     t1 = time.time()
-
     i = 0
     while N is None or i < N:
         log.info(f" iteration {i}")
         xn, vn, Cn, un, Fn, Hxn, Eksn = cpmd_velocity_verlet(
             x0, v0, u0, F, Hx, Fh, dt, m, me, kset, solvers
         )
+        log.debug(f"coeffcients: \n {kset.C[0,0]}")
         log.info(f"KSEnergy : {Eksn}")
         vc = to_cart(vn, lattice_vectors)
         ekin_x = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
@@ -137,7 +157,7 @@ def cpmd_verlet_raw(input_vars, kset, x0=None, v0=None, u0=None):
     log.info(f"Simulation ended successfully. Total time: {t2-t1}")
 
 
-def cpmd_verlet(input_vars, restart):
+def cpmd_verlet(input_vars, restart=False):
     """TODO"""
     log.info("Starting CPMD simulation")
     t1 = time.time()
@@ -159,9 +179,13 @@ def cpmd_verlet(input_vars, restart):
         log.debug(f"kset.C.shape: {kset.C[0,0].shape}")
     else:
         log.info("Initializing Sirius DFT object")
-        kset, _, _, dft_ = initialize(
+        kset, density, _, dft_ = initialize(
             num_dft_iter=10000
         )  # Ask Simon about res["density"/"potential"]
+        ############################################### Restarting from previous simulation
+       # C_init = sirius_load_state("initial_wf", "C", dst=PwCoeffs(ctype=np.matrix, dtype=np.complex128))
+        #kset.C = C_init 
+        #update_sirius(dft_)
 
     unit_cell = kset.ctx().unit_cell()
     lattice_vectors = np.array(unit_cell.lattice_vectors())
@@ -214,10 +238,10 @@ def cpmd_verlet(input_vars, restart):
 
 
 def run():
-    log.basicConfig(format="%(levelname)s:%(message)s", level=log.DEBUG, force=True)
+    log.basicConfig(format="%(levelname)s:%(message)s", level=log.INFO, force=True)
     input_vars = yaml.safe_load(open("input_cpmd.yml", "r"))
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--restart", nargs="?", type=argparse.FileType("r"))
-    args = parser.parse_args()
-
-    cpmd_verlet(input_vars, restart=args.restart)
+    #parser = argparse.ArgumentParser()
+    #parser.add_argument("--restart", nargs="?", type=argparse.FileType("r"))
+    #args = parser.parse_args()
+    #cpmd_verlet(input_vars, restart=args.restart)
+    cpmd_verlet(input_vars)
