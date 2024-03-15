@@ -65,9 +65,10 @@ def ls_shake(Cn, C, w=1 ,etol=5e-15, max_iter=100):
     A = Cn.H @ Cn
     I = identity_like(A)
     Xn = 0.5 * (I - A)
+    Cp=Cn
     for i in range(max_iter):
         XC = C @ Xn.H
-        Cp = Cn + XC
+        Cp = Cp + XC
         error = np.max(np.abs((Cp.H @ Cp - I)[0, 0]))
         log.debug(f"error ls-shake: {error}")
         if error < etol:
@@ -75,9 +76,8 @@ def ls_shake(Cn, C, w=1 ,etol=5e-15, max_iter=100):
             log.info(f"final error ls-shake: {error}")
             log.debug(f"lagrange multipliers (ls_shake) \n {Xn[0,0]}")
             log.debug(f"lagrange multipliers dimension \n {(Xn[0,0]).shape}")
-            return Cp, XC
-        Cn = Cp
-        A = Cn.H @ Cn
+            return Cp,Cp-Cn
+        A = Cp.H @ Cp
         Xn = 0.5 * (I - A)
     raise Exception("shake failed to converge")
 
