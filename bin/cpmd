@@ -2,4 +2,33 @@
 
 rootdir=$(dirname $0)
 
-python -u -m mpi4py ${rootdir}/run_cpmd_verlet $@
+#ws=(0.91 0.92 0.93 0.94 0.95 0.96 0.97 0.98 0.99 1 1.01 1.02 1.03 1.04 1.05 1.06 1.07 1.08 1.09)
+
+#for w in "${ws[@]}"; do
+#    argument="$w"
+#    output_file_name="w_${argument}.prof"
+#    python3 -u -m cProfile -o "${output_file_name}" -m mpi4py ${rootdir}/run_cpmd_verlet "$w"
+#    exit_status=$?
+#    if [ $exit_status -ne 0 ]; then
+#        # Append "_shake_failed" to the output file name
+#        mv "${output_file_name}" "failed_${output_file_name}"
+#    fi
+#done
+
+#ns=(100 200 400 800 1600 3200 6400 12800)
+
+#for n in "${ns[@]}"; do
+#    argument="$n"
+#    output_file_name="n_${argument}.prof"
+#    python3 -u -m cProfile -o "${output_file_name}" -m mpi4py ${rootdir}/run_cpmd_verlet "$n"
+#    exit_status=$?
+#    if [ $exit_status -ne 0 ]; then
+#        # Append "_shake_failed" to the output file name
+#        mv "${output_file_name}" "failed_${output_file_name}"
+#    fi
+#done
+
+#-m cProfile -o program.prof 
+
+
+python3 -u -m mpi4py ${rootdir}/run_cpmd_verlet $@

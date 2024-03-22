@@ -14,6 +14,7 @@ from .utils import to_cart, from_cart, initialize, sirius_load_state, sirius_sav
 import cProfile
 import timeit
 import sys
+import time
 
 
 
@@ -25,15 +26,19 @@ def cpmd_velocity_verlet(x, v, u, F, Hx, Fh, dt, m, me, kset, solvers):
 
     xn = x + v * dt + 0.5 * F / m * dt**2
     Cn = C + u * dt - 0.5 * kset.fn * Hx / me * dt**2
+    tic = time.perf_counter()
     Cn, XC = solvers["shake"](Cn, C) # XC is used to update the electronic velocities
+    toc = time.perf_counter()
+    log.info(f"shake time: {toc-tic}")
     ##### Profiling Orthonormality constraints solvers
 
     ### cprofile
-    #cProfile.runctx('solvers["shake"](Cn, C)', None, locals())
+    #cProfile.runctx('solvers["shake"](Cn, C)', None, locals(), sort='tottime')
+    #exit()
     ### timeit
     #t=timeit.Timer('solvers["shake"](Cn, C)',globals=locals())
-    #time = t.timeit(1)
-    #log.debug(f"shake took {time} seconds\n")
+    #time = t.timeit(2)
+    #log.info(f"shake took {time} seconds\n")
     #exit()
 
     # log.debug(f"plane wave norms: {np.linalg.norm(Cn[0,0], axis=0)}")
@@ -81,6 +86,7 @@ def cpmd_verlet_raw(input_vars, kset, x0=None, v0=None, u0=None):
     log.info(f"Time step: {dt}")
 
     N = None if "N" not in input_vars["parameters"]  else input_vars["parameters"]["N"]
+    #N = int(sys.argv[1])
     dft_ = DFT_ground_state(kset)
     Fh = CPMDForce(dft_)
 
@@ -114,13 +120,17 @@ def cpmd_verlet_raw(input_vars, kset, x0=None, v0=None, u0=None):
     else:
         log.info("NOT using gamma approximation")
         solvers = {"shake": ls_shake, "rattle": rattle}
-        log.info(f"Shake type: {solvers['shake'].__name__}")
+        shake_name = solvers['shake'].__name__
+        log.info(f"Shake type: {shake_name}")
     Fh = CPMDForce(dft_)
     F, Eks, Hx = Fh(kset.C, kset.fn, x0)
     log.debug(f"initial KS energy: {Eks:.12f}")
-    log.debug(f"initial coeffcients: \n {kset.C[0,0]}")
+    log.debug(f"initial coeffcients: \n {kset.C[0,0]} \n")
+    #(kset.C[0,0]).view(float).tofile(shake_name+"initialC")
+    log.debug(f"initial coeffcients dims: \n {(kset.C[0,0]).shape}")
     #sirius_save_state({"C": kset.C, "fn": kset.fn}, prefix="initial_wf")
     log.info("---------Starting main loop-----------")
+    #N = int(sys.argv[1])
     t1 = time.time()
     i = 0
     while N is None or i < N:
@@ -129,6 +139,7 @@ def cpmd_verlet_raw(input_vars, kset, x0=None, v0=None, u0=None):
             x0, v0, u0, F, Hx, Fh, dt, m, me, kset, solvers
         )
         log.debug(f"coeffcients: \n {kset.C[0,0]}")
+        #(kset.C[0,0]).view(float).tofile(shake_name+"finalC")
         log.info(f"KSEnergy : {Eksn}")
         vc = to_cart(vn, lattice_vectors)
         ekin_x = 0.5 * np.sum(vc**2 * m[:, np.newaxis])
@@ -240,8 +251,7 @@ def cpmd_verlet(input_vars, restart=False):
 def run():
     log.basicConfig(format="%(levelname)s:%(message)s", level=log.INFO, force=True)
     input_vars = yaml.safe_load(open("input_cpmd.yml", "r"))
-    #parser = argparse.ArgumentParser()
-    #parser.add_argument("--restart", nargs="?", type=argparse.FileType("r"))
-    #args = parser.parse_args()
-    #cpmd_verlet(input_vars, restart=args.restart)
-    cpmd_verlet(input_vars)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--restart", nargs="?", type=argparse.FileType("r"))
+    args = parser.parse_args()
+    cpmd_verlet(input_vars, restart=args.restart)

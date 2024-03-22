@@ -6,6 +6,8 @@ from sirius.ot import Energy, ApplyHamiltonian
 import logging as log
 import copy as cp
 import sys
+import time
+
 
 def shake(Cn, C, etol=5e-15, max_iter=100):
     """Add the Lagrange multipliers to the current wave function coefficients (wfc).
@@ -15,17 +17,16 @@ def shake(Cn, C, etol=5e-15, max_iter=100):
     A = Cn.H @ Cn
     B = C.H @ Cn
     I = identity_like(A)
-    Xn = 0.5 * (I - A)
-    for _ in range(max_iter + 1):  # TODO: Add the number of iteration in input file
+    Xn = 0.5 * (I - A)  
+    for i in range(max_iter + 1):  # TODO: Add the number of iteration in input file
         Xn = 0.5 * (I - A + Xn @ (I - B) + (I - B.H) @ Xn - (Xn @ Xn))
         XC = C @ Xn.H
         Cp = Cn + XC  # eq. (4.3) in T&P
         error = np.max(np.abs((Cp.H @ Cp - I)[0, 0]))  # TODO: generalize
-        log.debug(f"error shake : {error}")
         if error < etol:
             log.debug(f"plane wave norms: {np.linalg.norm(Cp[0,0], axis=0)}")
-            log.debug(f"position lagrange multipliers dimension \n {(Xn[0,0]).shape}")
-            log.debug(f"position lagrange multipliers (shake) \n {Xn[0,0]}")
+            log.debug(f"final error ls-shake: {error}")
+            log.debug(f"shake iterations: {i+1}")
             return Cp, XC
     raise Exception("shake failed to converge")
 
@@ -55,10 +56,11 @@ def l_shake(Cn, C, etol=5e-15, inner_tol = 5e-15,max_iter=100):
         log.debug(f"error shake : {error}")
         if error < etol:
             log.debug(f"plane wave norms: {np.linalg.norm(Cp[0,0], axis=0)}")
+            log.info(f"final error ls-shake: {error}")
             return Cp, XC
     raise Exception("shake failed to converge")
 
-def ls_shake(Cn, C, w=1 ,etol=5e-15, max_iter=100):
+def ls_shake(Cn, C ,etol=5e-15, max_iter=100):
     """
     Linearized and symmetrized version of SHAKE with an over-relaxation parameter w
     """
@@ -70,12 +72,10 @@ def ls_shake(Cn, C, w=1 ,etol=5e-15, max_iter=100):
         XC = C @ Xn.H
         Cp = Cp + XC
         error = np.max(np.abs((Cp.H @ Cp - I)[0, 0]))
-        log.debug(f"error ls-shake: {error}")
         if error < etol:
             log.debug(f"plane wave norms: {np.linalg.norm(Cp[0,0], axis=0)}")
-            log.info(f"final error ls-shake: {error}")
-            log.debug(f"lagrange multipliers (ls_shake) \n {Xn[0,0]}")
-            log.debug(f"lagrange multipliers dimension \n {(Xn[0,0]).shape}")
+            log.debug(f"final error ls-shake: {error}")
+            log.debug(f" ls shake iterations: {i+1}")
             return Cp,Cp-Cn
         A = Cp.H @ Cp
         Xn = 0.5 * (I - A)

@@ -4,6 +4,7 @@ from sirius import CoefficientArray
 from mpi4py import MPI
 import json
 import h5py
+import logging as log
 
 def to_cart(x, L):
     assert L.shape == (3, 3)
@@ -92,8 +93,8 @@ def initialize(tol=None, atom_positions=None, num_dft_iter=10000):
             n = len(sirius_config["unit_cell"]["atoms"][atom])
             positions = [atom_positions.pop(0) for _ in range(n)]
             sirius_config["unit_cell"]["atoms"][atom] = positions
-
-    print(f"Number of iteration: {num_dft_iter}")
+    
+    log.debug(f"number of dft iterations: {num_dft_iter}")
     res = DFT_ground_state_find(num_dft_iter, config=sirius_config)
 
     if not res["E"]["converged"]:
